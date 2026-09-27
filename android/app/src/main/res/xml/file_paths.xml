@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- APK обновлений из GitHub Releases: filesDir/updates/*.apk -->
+    <files-path name="updates" path="updates/" />
+    <!-- Бэкапы JSON для Share-intent. -->
+    <external-files-path name="backups" path="backups/" />
+</paths>

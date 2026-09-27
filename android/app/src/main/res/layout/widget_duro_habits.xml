@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget_dark"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <!-- Top Bar: Logo, Date/Year Progress, and Quick Mic Button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="6dp"
+                android:src="@drawable/ic_duro_asterisk" />
+
+            <TextView
+                android:id="@+id/tv_widget_year_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reached 74% of 2026"
+                android:textColor="#9E9EA7"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Quick Mic Recording Button on Widget Header -->
+        <FrameLayout
+            android:id="@+id/btn_widget_quick_record"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/bg_widget_mic_btn"
+            android:contentDescription="Начать голосовую запись">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_widget_mic" />
+        </FrameLayout>
+    </RelativeLayout>
+
+    <!-- Habit 1 Row -->
+    <LinearLayout
+        android:id="@+id/layout_habit_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_widget_card"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_habit_1_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Workout"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_habit_1_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fitness • 🔥 8 Streaks"
+                android:textColor="#FF6B35"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_check_habit_1"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="Check habit 1"
+            android:src="@drawable/ic_widget_circle_empty" />
+    </LinearLayout>
+
+    <!-- Habit 2 Row -->
+    <LinearLayout
+        android:id="@+id/layout_habit_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_widget_card"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_habit_2_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Make Bed"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_habit_2_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Morning • 🔥 13 Streaks"
+                android:textColor="#FF6B35"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_check_habit_2"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="Check habit 2"
+            android:src="@drawable/ic_widget_circle_empty" />
+    </LinearLayout>
+
+    <!-- Habit 3 Row -->
+    <LinearLayout
+        android:id="@+id/layout_habit_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_widget_card"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_habit_3_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Vitamin"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_habit_3_streak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Health • 🔥 21 Streaks"
+                android:textColor="#FF6B35"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_check_habit_3"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="Check habit 3"
+            android:src="@drawable/ic_widget_circle_empty" />
+    </LinearLayout>
+
+</LinearLayout>

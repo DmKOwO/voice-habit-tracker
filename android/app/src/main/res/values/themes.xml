@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.VoiceHabitTracker" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/duro_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Пояс + suspenders: на эмуляторе поверх Compose всплывал системный
+             ActionBar и перекрывал верхние кнопки. Давим его явно. -->
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!-- Тема только для холодного старта: тёмный фон + астериск, снимается installSplashScreen() -->
+    <style name="Theme.VoiceHabitTracker.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/duro_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_duro_asterisk</item>
+        <item name="postSplashScreenTheme">@style/Theme.VoiceHabitTracker</item>
+    </style>
+
+</resources>

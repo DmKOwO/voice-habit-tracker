@@ -1,0 +1,25 @@
+# Keystore для подписи релизов — НЕ коммитить! Хранится только в GitHub Secrets.
+*.jks
+*.keystore
+
+# Android / Gradle
+.gradle/
+build/
+android/build/
+android/app/build/
+android/.gradle/
+android/.kotlin/
+local.properties
+# APK не храним в git: они публикуются в GitHub Releases через CI.
+*.apk
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+

@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="28"
+    android:viewportHeight="28">
+    <!-- Dark circle stroke with subtle background -->
+    <path
+        android:fillColor="#22222E"
+        android:strokeColor="#555568"
+        android:strokeWidth="1.5"
+        android:pathData="M14,1A13,13 0 1,0 27,14A13,13 0 0,0 14,1z" />
+</vector>

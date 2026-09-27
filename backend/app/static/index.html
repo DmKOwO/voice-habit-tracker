@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Habit & Task Tracker — AI Testbench (2026)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .recording-pulse {
+      animation: pulse-ring 1.5s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-microphone-lines text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Voice Habit & Task Tracker</h1>
+          <p class="text-xs text-slate-400">Groq Whisper Turbo + Gemini 3.5 Flash-Lite Engine</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="backendStatus" class="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <i class="fa-solid fa-circle text-[8px] mr-1.5 animate-pulse"></i>Проверка...
+        </span>
+        <a href="/docs" target="_blank" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition">
+          <i class="fa-solid fa-book-open mr-1"></i>Swagger Docs
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
+    <!-- Left Column: Controls & Recording -->
+    <div class="lg:col-span-5 space-y-6">
+      <!-- Recording Box -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <h2 class="text-base font-semibold text-slate-200 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-record-vinyl text-indigo-400"></i> Запись речи
+        </h2>
+
+        <div class="flex flex-col items-center justify-center py-6">
+          <button id="recordBtn" class="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-xl shadow-indigo-600/30 flex items-center justify-center text-white text-3xl transition transform active:scale-95 focus:outline-none">
+            <i id="recordIcon" class="fa-solid fa-microphone"></i>
+          </button>
+          <div id="recordingTimer" class="mt-4 text-2xl font-mono font-medium text-slate-300">00:00</div>
+          <p id="recordStatus" class="text-xs text-slate-400 mt-1">Нажмите для начала записи микрофона</p>
+        </div>
+
+        <div class="border-t border-slate-800/80 pt-4 mt-2">
+          <label class="block text-xs font-medium text-slate-400 mb-2">Или загрузите файл (.m4a, .mp3, .wav, .opus):</label>
+          <input type="file" id="audioFileInput" accept="audio/*" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+        </div>
+
+        <button id="processBtn" disabled class="mt-5 w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-900/20 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Распознать и структурировать
+        </button>
+
+        <button id="demoBtn" class="mt-3 w-full py-2.5 bg-slate-800/90 hover:bg-slate-800 text-indigo-300 hover:text-indigo-200 text-xs font-semibold rounded-xl border border-indigo-500/20 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-bolt text-amber-400"></i> Запустить тестовый поток (5 мин речь)
+        </button>
+      </div>
+
+      <!-- Context Settings Accordion -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-emerald-400"></i> Контекст пользователя (Android State)
+        </h3>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="text-slate-400 block mb-1">Клиентское время (ISO-8601):</label>
+            <input type="text" id="clientTime" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 font-mono">
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Существующие привычки (JSON):</label>
+            <textarea id="habitsContext" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 font-mono text-[11px]"></textarea>
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Открытые задачи (JSON):</label>
+            <textarea id="tasksContext" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 font-mono text-[11px]"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Results & Interactive ReviewSheet View -->
+    <div class="lg:col-span-7 space-y-6">
+      <!-- Response Metrics Bar -->
+      <div id="metricsBar" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-4">
+          <div><span class="text-slate-500">STT:</span> <span id="sttTime" class="font-mono text-emerald-400 font-semibold">-</span></div>
+          <div><span class="text-slate-500">LLM:</span> <span id="llmTime" class="font-mono text-indigo-400 font-semibold">-</span></div>
+          <div><span class="text-slate-500">Итого:</span> <span id="totalTime" class="font-mono text-white font-semibold">-</span></div>
+        </div>
+        <div id="modelBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-mono">model</div>
+      </div>
+
+      <!-- Placeholder empty state -->
+      <div id="emptyState" class="bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl p-12 text-center">
+        <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mx-auto mb-4 text-slate-600 text-2xl">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <h3 class="text-sm font-medium text-slate-300">Ожидание голосового потока</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">Запишите свободную мысль в микрофон или загрузите аудио, чтобы увидеть работу Whisper и Gemini 3.5 Flash-Lite в действии.</p>
+      </div>
+
+      <!-- Results Container -->
+      <div id="resultsContainer" class="hidden space-y-5">
+        <!-- Summary & Transcript Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Саммари записи</h3>
+            <span class="text-xs text-slate-500"><i class="fa-solid fa-quote-left mr-1"></i>TL;DR</span>
+          </div>
+          <p id="resultSummary" class="text-sm text-slate-200 font-medium"></p>
+          
+          <div class="mt-4 pt-3 border-t border-slate-800/80">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Сырой транскрипт речи</span>
+            <p id="resultTranscript" class="text-xs text-slate-400 italic bg-slate-950 p-3 rounded-xl border border-slate-800/50"></p>
+          </div>
+        </div>
+
+        <!-- Android ReviewSheet Mock Preview -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <i class="fa-solid fa-mobile-screen text-indigo-400"></i> Экран подтверждения (Android Review Sheet)
+            </h3>
+            <span class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Готово к сохранению в Room</span>
+          </div>
+
+          <!-- Section: Habits Completed -->
+          <div class="mb-4">
+            <h4 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-check-double"></i> Отмеченные привычки
+            </h4>
+            <div id="habitsList" class="space-y-2"></div>
+          </div>
+
+          <!-- Section: Tasks Created -->
+          <div class="mb-4">
+            <h4 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-list-check"></i> Новые задачи к созданию
+            </h4>
+            <div id="tasksList" class="space-y-2"></div>
+          </div>
+
+          <!-- Section: Notes & Insights -->
+          <div>
+            <h4 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-lightbulb"></i> Идеи и заметки
+            </h4>
+            <div id="notesList" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Raw JSON Toggle -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <details class="text-xs text-slate-400">
+            <summary class="cursor-pointer font-mono hover:text-slate-200 transition">Показать сырой JSON ответа бэкенда</summary>
+            <pre id="rawJsonResponse" class="mt-3 p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] overflow-x-auto text-emerald-300 font-mono"></pre>
+          </details>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // State
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedBlob = null;
+    let timerInterval = null;
+    let recordSeconds = 0;
+
+    // Elements
+    const recordBtn = document.getElementById('recordBtn');
+    const recordIcon = document.getElementById('recordIcon');
+    const recordingTimer = document.getElementById('recordingTimer');
+    const recordStatus = document.getElementById('recordStatus');
+    const audioFileInput = document.getElementById('audioFileInput');
+    const processBtn = document.getElementById('processBtn');
+    const clientTimeInput = document.getElementById('clientTime');
+    const habitsContextArea = document.getElementById('habitsContext');
+    const tasksContextArea = document.getElementById('tasksContext');
+    const backendStatus = document.getElementById('backendStatus');
+
+    // Init Defaults
+    clientTimeInput.value = new Date().toISOString();
+    habitsContextArea.value = JSON.stringify([
+      { id: "habit_gym", title: "Спортзал / Тренировка", target_value: 1, unit: "раз" },
+      { id: "habit_water", title: "Пить норму воды", target_value: 2000, unit: "мл" },
+      { id: "habit_read", title: "Чтение книги", target_value: 20, unit: "страниц" }
+    ], null, 2);
+
+    tasksContextArea.value = JSON.stringify([
+      { id: "task_buy_groceries", title: "Купить продукты на неделю" },
+      { id: "task_send_lab", title: "Отправить лабораторную работу" }
+    ], null, 2);
+
+    // Check health
+    fetch('/api/v1/health')
+      .then(r => r.json())
+      .then(data => {
+        backendStatus.innerHTML = `<i class="fa-solid fa-circle text-[8px] mr-1.5 text-emerald-400"></i>${data.status} (${data.groq_configured ? 'Groq' : 'Mock'} + ${data.gemini_configured ? 'Gemini 3.5' : 'Mock'})`;
+        backendStatus.className = "px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      })
+      .catch(() => {
+        backendStatus.innerHTML = '<i class="fa-solid fa-circle text-[8px] mr-1.5 text-red-400"></i>Offline';
+        backendStatus.className = "px-2.5 py-1 text-xs font-medium rounded-full bg-red-500/10 text-red-400 border border-red-500/20";
+      });
+
+    // Recording Logic
+    recordBtn.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        clearInterval(timerInterval);
+        recordBtn.classList.remove('recording-pulse', 'from-red-600', 'to-red-500');
+        recordBtn.classList.add('from-indigo-600', 'to-indigo-500');
+        recordIcon.className = 'fa-solid fa-microphone';
+        recordStatus.innerText = 'Запись завершена. Готово к отправке.';
+      } else {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            recordedBlob = new Blob(audioChunks, { type: 'audio/m4a' });
+            processBtn.disabled = false;
+          };
+
+          mediaRecorder.start();
+          recordSeconds = 0;
+          timerInterval = setInterval(() => {
+            recordSeconds++;
+            const m = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+            const s = String(recordSeconds % 60).padStart(2, '0');
+            recordingTimer.innerText = `${m}:${s}`;
+          }, 1000);
+
+          recordBtn.classList.add('recording-pulse', 'from-red-600', 'to-red-500');
+          recordBtn.classList.remove('from-indigo-600', 'to-indigo-500');
+          recordIcon.className = 'fa-solid fa-stop';
+          recordStatus.innerText = 'Идет запись речи... Нажмите Стоп для завершения';
+        } catch (err) {
+          alert('Ошибка доступа к микрофону: ' + err.message);
+        }
+      }
+    });
+
+    audioFileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        recordedBlob = e.target.files[0];
+        processBtn.disabled = false;
+        recordStatus.innerText = `Выбран файл: ${recordedBlob.name}`;
+      }
+    });
+
+    const demoBtn = document.getElementById('demoBtn');
+
+    async function triggerProcess() {
+      if (!recordedBlob) return;
+
+      processBtn.disabled = true;
+      demoBtn.disabled = true;
+      processBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обработка Whisper + Gemini 3.5...';
+
+      const formData = new FormData();
+      formData.append('audio', recordedBlob, recordedBlob.name || 'recording.m4a');
+      formData.append('client_current_time', clientTimeInput.value);
+      formData.append('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+      formData.append('active_habits_context', habitsContextArea.value);
+      formData.append('open_tasks_context', tasksContextArea.value);
+
+      try {
+        const resp = await fetch('/api/v1/voice/process', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || 'Ошибка сервера');
+        }
+
+        const data = await resp.json();
+        renderResults(data);
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      } finally {
+        processBtn.disabled = false;
+        demoBtn.disabled = false;
+        processBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Распознать и структурировать';
+      }
+    }
+
+    // Process Voice Button
+    processBtn.addEventListener('click', triggerProcess);
+
+    async function runDemo() {
+      recordedBlob = new Blob(["demo_voice_stream_sample_content"], { type: 'audio/m4a' });
+      recordStatus.innerText = "Используется демонстрационный голосовой поток (5 мин)";
+      await triggerProcess();
+    }
+
+    demoBtn.addEventListener('click', runDemo);
+
+    // Auto-trigger if ?demo=1 in URL
+    if (new URLSearchParams(window.location.search).has('demo')) {
+      setTimeout(runDemo, 500);
+    }
+
+    function renderResults(data) {
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('metricsBar').classList.remove('hidden');
+      document.getElementById('resultsContainer').classList.remove('hidden');
+
+      document.getElementById('sttTime').innerText = `${data.stt_duration_ms} мс`;
+      document.getElementById('llmTime').innerText = `${data.llm_duration_ms} мс`;
+      document.getElementById('totalTime').innerText = `${data.duration_seconds.toFixed(2)} с`;
+      document.getElementById('modelBadge').innerText = data.model_used;
+
+      document.getElementById('resultSummary').innerText = data.summary;
+      document.getElementById('resultTranscript').innerText = `"${data.raw_transcript}"`;
+      document.getElementById('rawJsonResponse').innerText = JSON.stringify(data, null, 2);
+
+      // Habits list
+      const habitsList = document.getElementById('habitsList');
+      habitsList.innerHTML = '';
+      if (data.habits_completed.length === 0) {
+        habitsList.innerHTML = '<p class="text-xs text-slate-500 italic">Привычек не обнаружено</p>';
+      } else {
+        data.habits_completed.forEach(h => {
+          habitsList.innerHTML += `
+            <div class="flex items-start justify-between bg-slate-950 p-3 rounded-xl border border-emerald-950/40">
+              <div class="flex items-start gap-2.5">
+                <input type="checkbox" checked class="mt-1 rounded text-emerald-500 focus:ring-0">
+                <div>
+                  <div class="text-xs font-semibold text-slate-200">${h.habit_title}</div>
+                  ${h.comment ? `<div class="text-[11px] text-slate-400">${h.comment}</div>` : ''}
+                </div>
+              </div>
+              ${h.increment_value ? `<span class="text-xs font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">+${h.increment_value}</span>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      // Tasks list
+      const tasksList = document.getElementById('tasksList');
+      tasksList.innerHTML = '';
+      if (data.tasks_to_add.length === 0) {
+        tasksList.innerHTML = '<p class="text-xs text-slate-500 italic">Новых задач не создано</p>';
+      } else {
+        data.tasks_to_add.forEach(t => {
+          const priorityColor = t.priority === 'HIGH' ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-slate-400 bg-slate-800 border-slate-700';
+          tasksList.innerHTML += `
+            <div class="bg-slate-950 p-3 rounded-xl border border-indigo-950/40 space-y-1.5">
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-xs font-medium text-slate-200">${t.title}</span>
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded border ${priorityColor}">${t.priority}</span>
+              </div>
+              <div class="flex items-center gap-3 text-[11px] text-slate-400">
+                <span><i class="fa-regular fa-clock mr-1 text-indigo-400"></i>${t.due_date || 'Без дедлайна'}</span>
+                <span><i class="fa-regular fa-folder mr-1 text-slate-500"></i>${t.category}</span>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      // Notes list
+      const notesList = document.getElementById('notesList');
+      notesList.innerHTML = '';
+      if (data.quick_notes.length === 0) {
+        notesList.innerHTML = '<p class="text-xs text-slate-500 italic">Свободных заметок нет</p>';
+      } else {
+        data.quick_notes.forEach(n => {
+          const tags = n.tags.map(tag => `<span class="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded text-[10px]">#${tag}</span>`).join(' ');
+          notesList.innerHTML += `
+            <div class="bg-slate-950 p-3 rounded-xl border border-amber-950/40 space-y-1">
+              <p class="text-xs text-slate-300">${n.text}</p>
+              <div class="flex items-center gap-1.5 pt-1">${tags}</div>
+            </div>
+          `;
+        });
+      }
+    }
+  </script>
+</body>
+</html>
