@@ -131,7 +131,7 @@ fun JournalScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Top Bar: Title & Profile Icon
+        // Top Bar: Title
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -161,24 +161,6 @@ fun JournalScreen(
                     ),
                     fontSize = 12.sp,
                     color = DuroTextSecondary
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    haptics.select()
-                    viewModel.openProfileMenu()
-                },
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(DuroSurface)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Профиль и настройки",
-                    tint = DuroTextSecondary,
-                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -227,7 +209,7 @@ fun JournalScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Mood & Tag Filter Chips
+        // Mood & Tag Filter Chips (комфортная высота 38dp для точного тапа пальцем)
         val moodFilters = listOf("Все", "Спокойное", "Вдохновленное", "Тревожное", "Аналитическое", "Закрепленные", "Идеи", "Планы")
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -247,29 +229,36 @@ fun JournalScreen(
                         1.dp,
                         if (isSelected) DuroJournalLavender else DuroBorder
                     ),
-                    modifier = Modifier.clickable {
-                        haptics.select()
-                        when (filter) {
-                            "Все" -> {
-                                viewModel.setJournalFilterMood(null)
-                                viewModel.setJournalFilterTag(null)
-                            }
-                            "Спокойное", "Вдохновленное", "Тревожное", "Аналитическое" -> {
-                                viewModel.setJournalFilterMood(if (selectedMood == filter) null else filter)
-                            }
-                            else -> {
-                                viewModel.setJournalFilterTag(if (selectedTag == filter) null else filter)
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable {
+                            haptics.select()
+                            when (filter) {
+                                "Все" -> {
+                                    viewModel.setJournalFilterMood(null)
+                                    viewModel.setJournalFilterTag(null)
+                                }
+                                "Спокойное", "Вдохновленное", "Тревожное", "Аналитическое" -> {
+                                    viewModel.setJournalFilterMood(if (selectedMood == filter) null else filter)
+                                }
+                                else -> {
+                                    viewModel.setJournalFilterTag(if (selectedTag == filter) null else filter)
+                                }
                             }
                         }
-                    }
                 ) {
-                    Text(
-                        text = filter,
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else DuroTextSecondary,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                    )
+                    Box(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = filter,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else DuroTextSecondary
+                        )
+                    }
                 }
             }
         }

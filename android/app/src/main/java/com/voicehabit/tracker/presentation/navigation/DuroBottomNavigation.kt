@@ -51,11 +51,11 @@ fun DuroBottomNavigation(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .height(64.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MainTab.values().forEach { tab ->
+            MainTab.entries.forEach { tab ->
                 val isSelected = tab == selectedTab
                 val accentColor = when (tab) {
                     MainTab.JOURNAL -> DuroJournalLavender
@@ -81,10 +81,12 @@ fun DuroBottomNavigation(
                     label = "TabContentAnimation"
                 )
 
+                // Полная 1/3 ширины экрана на каждый таб — 0 мёртвых зон при тапе пальцем
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(animatedBgColor)
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(18.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -93,28 +95,36 @@ fun DuroBottomNavigation(
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onTabSelected(tab)
                             }
-                        }
-                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(animatedBgColor)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = tab.label,
-                            tint = animatedContentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        if (isSelected) {
-                            Text(
-                                text = tab.label,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = animatedContentColor,
-                                letterSpacing = 0.3.sp
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = tab.label,
+                                tint = animatedContentColor,
+                                modifier = Modifier.size(20.dp)
                             )
+                            if (isSelected) {
+                                Text(
+                                    text = tab.label,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = animatedContentColor,
+                                    letterSpacing = 0.3.sp,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }

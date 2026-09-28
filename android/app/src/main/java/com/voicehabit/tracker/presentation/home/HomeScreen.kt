@@ -15,8 +15,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -108,24 +106,6 @@ fun HomeScreen(
         }
     }
 
-    val pagerState = rememberPagerState(initialPage = state.selectedMainTab.ordinal) { 3 }
-
-    // Sync Pager -> State on swipe gesture
-    LaunchedEffect(pagerState.currentPage) {
-        val tab = MainTab.entries.getOrNull(pagerState.currentPage) ?: MainTab.RHYTHM
-        if (tab != state.selectedMainTab) {
-            haptics.select()
-            viewModel.setSelectedMainTab(tab)
-        }
-    }
-
-    // Sync State -> Pager when changed via ViewModel or code
-    LaunchedEffect(state.selectedMainTab) {
-        if (pagerState.currentPage != state.selectedMainTab.ordinal) {
-            pagerState.animateScrollToPage(state.selectedMainTab.ordinal)
-        }
-    }
-
     Scaffold(
         containerColor = DuroBackground,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -142,9 +122,6 @@ fun HomeScreen(
                     onTabSelected = { tab ->
                         haptics.select()
                         viewModel.setSelectedMainTab(tab)
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(tab.ordinal)
-                        }
                     },
                     modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
                 )
@@ -253,24 +230,32 @@ fun HomeScreen(
                                 }
                             }
 
-                            // Profile / System Menu Button
-                            IconButton(
-                                onClick = {
-                                    haptics.select()
-                                    viewModel.openProfileMenu()
-                                },
+                            // Profile / System Menu Button (комфортная зона нажатия 48x48dp)
+                            Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(DuroSurfaceElevated)
-                                    .border(1.dp, DuroBorder, CircleShape)
+                                    .clickable {
+                                        haptics.select()
+                                        viewModel.openProfileMenu()
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.PersonOutline,
-                                    contentDescription = "Профиль и система",
-                                    tint = if (!state.hasApiKeysConfigured) DuroOrange else DuroTextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(DuroSurfaceElevated)
+                                        .border(1.dp, DuroBorder, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PersonOutline,
+                                        contentDescription = "Профиль и система",
+                                        tint = if (!state.hasApiKeysConfigured) DuroOrange else DuroTextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -358,21 +343,33 @@ fun HomeScreen(
                         }
                     }
 
-                    // SWIPEABLE HORIZONTAL PAGER: 🌿 Ритм, 📖 Дневник, ⚡ Обзор
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
-                        when (page) {
-                            0 -> RhythmView(viewModel = viewModel)
-                            1 -> JournalScreen(viewModel = viewModel)
-                            2 -> OverviewScreen(viewModel = viewModel)
+                    // Плавный переход между табами без конфликтов жестов и свайпов
+                    AnimatedContent(
+                        targetState = state.selectedMainTab,
+                        transitionSpec = {
+                            if (targetState.ordinal > initialState.ordinal) {
+                                (slideInHorizontally { width -> width / 5 } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { width -> -width / 5 } + fadeOut()
+                                )
+                            } else {
+                                (slideInHorizontally { width -> -width / 5 } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { width -> width / 5 } + fadeOut()
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        label = "MainTabTransition"
+                    ) { tab ->
+                        when (tab) {
+                            MainTab.RHYTHM -> RhythmView(viewModel = viewModel)
+                            MainTab.JOURNAL -> JournalScreen(viewModel = viewModel)
+                            MainTab.OVERVIEW -> OverviewScreen(viewModel = viewModel)
                         }
                     }
                 }
 
                 // FLOATING PILL SWITCHER: Grid vs List (Only visible on Rhythm tab)
-                if (pagerState.currentPage == 0) {
+                if (state.selectedMainTab == MainTab.RHYTHM) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -578,51 +575,67 @@ fun RhythmView(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Search Toggle
-                IconButton(
-                    onClick = {
-                        haptics.select()
-                        searchExpanded = !searchExpanded
-                    },
+                // Search Toggle (touch target 44x44dp)
+                Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(if (searchExpanded) DuroOrange.copy(alpha = 0.15f) else Color(0xFF181822))
+                        .clickable {
+                            haptics.select()
+                            searchExpanded = !searchExpanded
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Поиск",
-                        tint = if (searchExpanded) DuroOrange else DuroTextPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (searchExpanded) DuroOrange.copy(alpha = 0.15f) else Color(0xFF181822)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Поиск",
+                            tint = if (searchExpanded) DuroOrange else DuroTextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
-                // Add Habit / Task
-                IconButton(
-                    onClick = {
-                        haptics.confirm()
-                        viewModel.openCreateHabit()
-                    },
+                // Add Habit / Task (touch target 44x44dp)
+                Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF181822))
+                        .clickable {
+                            haptics.confirm()
+                            viewModel.openCreateHabit()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Создать привычку или задачу",
-                        tint = DuroTextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF181822)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Создать привычку или задачу",
+                            tint = DuroTextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-        // Habit Frequency Tabs: All, D, W, M
+        // Habit Frequency Tabs: All, D, W, M с комфортной зоной нажатия
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val tabs = listOf("All", "D", "W", "M")
@@ -630,10 +643,13 @@ fun RhythmView(
                 val isSelected = tab == state.selectedTab
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable {
-                        haptics.select()
-                        viewModel.setSelectedTab(tab)
-                    }
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            haptics.select()
+                            viewModel.setSelectedTab(tab)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = tab,
