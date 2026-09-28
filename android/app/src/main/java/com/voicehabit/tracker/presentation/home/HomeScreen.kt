@@ -70,6 +70,7 @@ import com.voicehabit.tracker.presentation.navigation.DuroBottomNavigation
 import com.voicehabit.tracker.presentation.onboarding.OnboardingDialog
 import com.voicehabit.tracker.presentation.overview.OverviewScreen
 import com.voicehabit.tracker.presentation.profile.ProfileMenuSheet
+import com.voicehabit.tracker.presentation.profile.UserPersonaScreen
 import com.voicehabit.tracker.presentation.review.ReviewScreen
 import com.voicehabit.tracker.presentation.routines.RoutinesScreen
 import com.voicehabit.tracker.presentation.stats.StatsScreen
@@ -170,6 +171,7 @@ fun HomeScreen(
                     AppScreen.ABOUT -> AboutScreen(viewModel = viewModel)
                     AppScreen.DIGESTS -> DigestsScreen(viewModel = viewModel)
                     AppScreen.JOURNAL -> JournalScreen(viewModel = viewModel)
+                    AppScreen.USER_PERSONA -> UserPersonaScreen(viewModel = viewModel)
                     AppScreen.HOME -> Unit
                 }
             } else {

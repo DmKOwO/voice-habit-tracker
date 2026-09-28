@@ -60,3 +60,13 @@ fun VoiceHabitTrackerTheme(
         )
     }
 }
+
+@Composable
+fun duroTextFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = AppTheme.colors.accent,
+    unfocusedBorderColor = AppTheme.colors.border,
+    focusedTextColor = AppTheme.colors.textPrimary,
+    unfocusedTextColor = AppTheme.colors.textPrimary,
+    focusedContainerColor = AppTheme.colors.surface,
+    unfocusedContainerColor = AppTheme.colors.surface
+)

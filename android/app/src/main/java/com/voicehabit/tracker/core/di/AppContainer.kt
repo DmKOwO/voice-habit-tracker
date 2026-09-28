@@ -59,6 +59,7 @@ class AppContainer(
     val speechRecognizer by lazy { SpeechRecognizerHelper(appContext) }
 
     val extrasRepository by lazy { com.voicehabit.tracker.data.repository.ExtrasRepository(database) }
+    val directAiService by lazy { com.voicehabit.tracker.data.remote.DirectAiService() }
 
     /** H1: конспекты свободного потока — «диктофон с выжимкой». */
     val digestRepository by lazy { com.voicehabit.tracker.data.repository.DigestRepository(database) }

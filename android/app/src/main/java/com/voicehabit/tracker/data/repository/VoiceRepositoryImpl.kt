@@ -96,13 +96,15 @@ class VoiceRepositoryImpl(
             if (sttRes.isSuccess) {
                 val (rawTranscript, sttMs) = sttRes.getOrThrow()
 
+                val userPersona = settingsManager.getUserPersonaContext()
                 val geminiRes = directAiService.parseIntentGemini(
                     transcript = rawTranscript,
                     geminiApiKey = settingsManager.effectiveGeminiApiKey,
                     clientCurrentTimeIso = clientCurrentTimeIso,
                     timezone = timezone,
                     activeHabitsJson = habitsJson,
-                    openTasksJson = tasksJson
+                    openTasksJson = tasksJson,
+                    userPersonaContext = userPersona
                 )
 
                 if (geminiRes.isSuccess) {
@@ -282,13 +284,15 @@ class VoiceRepositoryImpl(
                 mapOf("id" to it.id, "title" to it.title, "due_date" to it.dueDateIso)
             })
 
+            val userPersona = settingsManager.getUserPersonaContext()
             val geminiRes = directAiService.parseIntentGemini(
                 transcript = transcript,
                 geminiApiKey = settingsManager.effectiveGeminiApiKey,
                 clientCurrentTimeIso = clientCurrentTimeIso,
                 timezone = timezone,
                 activeHabitsJson = habitsJson,
-                openTasksJson = tasksJson
+                openTasksJson = tasksJson,
+                userPersonaContext = userPersona
             )
 
             if (geminiRes.isSuccess) {
@@ -417,6 +421,16 @@ class VoiceRepositoryImpl(
         val insightsList = mutableListOf<String>()
         json.getAsJsonArray("insights")?.forEach { elem ->
             if (elem.isJsonPrimitive) insightsList.add(elem.asString)
+        }
+
+        // Автоматическое пополнение прозрачной памяти фактами от ИИ
+        json.getAsJsonArray("inferred_facts")?.forEach { elem ->
+            if (elem.isJsonPrimitive) {
+                val fact = elem.asString.trim()
+                if (fact.isNotBlank()) {
+                    settingsManager?.addMemoryFact(fact)
+                }
+            }
         }
 
         val digest = json.getAsJsonObject("digest")?.let { parseDigest(it, rawTranscript) }

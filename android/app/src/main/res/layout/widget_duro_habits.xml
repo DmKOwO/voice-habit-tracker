@@ -86,8 +86,8 @@
                 android:id="@+id/tv_habit_1_streak"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Fitness • 🔥 8 Streaks"
-                android:textColor="#FF6B35"
+                android:text="Fitness • 8 дней"
+                android:textColor="#A8A5A0"
                 android:textSize="10sp" />
         </LinearLayout>
 
@@ -130,8 +130,8 @@
                 android:id="@+id/tv_habit_2_streak"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Morning • 🔥 13 Streaks"
-                android:textColor="#FF6B35"
+                android:text="Morning • 13 дней"
+                android:textColor="#A8A5A0"
                 android:textSize="10sp" />
         </LinearLayout>
 
@@ -173,8 +173,8 @@
                 android:id="@+id/tv_habit_3_streak"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Health • 🔥 21 Streaks"
-                android:textColor="#FF6B35"
+                android:text="Health • 21 день"
+                android:textColor="#A8A5A0"
                 android:textSize="10sp" />
         </LinearLayout>
 

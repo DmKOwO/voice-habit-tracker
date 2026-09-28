@@ -230,6 +230,48 @@ class ObsidianVaultManager(
     }
 
     /**
+     * Экспортирует отчёт о спринте фокуса в Obsidian Vault.
+     */
+    suspend fun exportFocusSprint(
+        label: String,
+        durationMin: Int,
+        completed: Boolean,
+        debriefNotes: String?,
+        steps: List<String>
+    ): Result<ExportResult> = withContext(Dispatchers.IO) {
+        val rootUri = settings.obsidianVaultUri
+        if (rootUri.isBlank()) {
+            return@withContext Result.failure(IllegalStateException("Obsidian Vault не настроен"))
+        }
+
+        val rootDoc = DocumentFile.fromTreeUri(context, Uri.parse(rootUri))
+            ?: return@withContext Result.failure(IOException("Не удалось открыть Vault"))
+
+        val focusDir = getOrCreateDirectory(rootDoc, "Focus") ?: rootDoc
+        val markdown = ObsidianMarkdownFormatter.formatFocusSprint(label, durationMin, completed, debriefNotes, steps)
+        val safeTitle = ObsidianMarkdownFormatter.sanitizeFileName(label.ifBlank { "sprint" }).take(30)
+        val timeStamp = java.text.SimpleDateFormat("yyyy-MM-dd_HHmm", java.util.Locale.US).format(java.util.Date())
+        val fileName = "$timeStamp $safeTitle.md"
+
+        val noteDoc = focusDir.findFile(fileName)
+            ?: focusDir.createFile("text/markdown", fileName)
+            ?: return@withContext Result.failure(IOException("Не удалось создать файл заметки фокуса"))
+
+        return@withContext runCatching {
+            context.contentResolver.openOutputStream(noteDoc.uri, "wt")?.use { out ->
+                out.write(markdown.toByteArray(Charsets.UTF_8))
+                out.flush()
+            }
+            ExportResult(
+                fileName = fileName,
+                uri = noteDoc.uri,
+                relativePath = "Focus/$fileName",
+                hasAudio = false
+            )
+        }
+    }
+
+    /**
      * Экспортирует все записи дневника, а также привычки и задачи.
      */
     suspend fun exportAll(

@@ -15,6 +15,7 @@ import com.voicehabit.tracker.domain.model.DigestRecord
 import com.voicehabit.tracker.domain.model.Habit
 import com.voicehabit.tracker.domain.model.IntentMode
 import com.voicehabit.tracker.domain.model.Priority
+import com.voicehabit.tracker.domain.model.Subtask
 import com.voicehabit.tracker.domain.model.Task
 import com.voicehabit.tracker.domain.model.TaskType
 import com.voicehabit.tracker.domain.model.VoiceNoteAction
@@ -29,6 +30,7 @@ import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Calendar
 import java.util.Locale
+import java.util.UUID
 
 /**
  * `@JvmOverloads` обязателен: `AndroidViewModelFactory` создаёт ViewModel
@@ -48,6 +50,7 @@ class HomeViewModel @JvmOverloads constructor(
     private val processVoiceUseCase = container.processVoiceUseCase
     private val applyVoiceActionsUseCase = container.applyVoiceActionsUseCase
     val obsidianVaultManager = container.obsidianVaultManager
+    val directAiService = container.directAiService
 
     private val logger = AppLogger.instance()
     val audioRecorder: AudioRecorderManager = container.audioRecorder
@@ -277,6 +280,15 @@ class HomeViewModel @JvmOverloads constructor(
         }
 
         observeRecorderState()
+
+        val sm = settings
+        _state.update {
+            it.copy(
+                userPersonaHardFacts = sm.userPersonaHardFacts,
+                userPersonaActiveFocus = sm.userPersonaActiveFocus,
+                userPersonaMemoryLog = sm.userPersonaMemoryLog
+            )
+        }
     }
 
     /**
@@ -417,13 +429,7 @@ class HomeViewModel @JvmOverloads constructor(
                 )
                 logger.finishOperation(VOICE_OPERATION, action.summary)
                 enqueueRetryIfTranscriptMissing(file, action)
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        pendingReviewAction = action,
-                        infoMessage = null
-                    )
-                }
+                handleParsedVoiceAction(action)
             }.onFailure { error ->
                 // Блокирующий first() по Flow раньше выполнялся в UI-потоке и зависал
                 // интерфейс до следующей эмиссии. Здесь только suspend-вызовы БД.
@@ -436,13 +442,7 @@ class HomeViewModel @JvmOverloads constructor(
                 }
                 logger.w("voice", "Офлайн-разбор: ${fallbackAction.summary}")
                 logger.finishOperation(VOICE_OPERATION, fallbackAction.summary)
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        pendingReviewAction = fallbackAction,
-                        infoMessage = null
-                    )
-                }
+                handleParsedVoiceAction(fallbackAction)
             }
         }
     }
@@ -451,6 +451,92 @@ class HomeViewModel @JvmOverloads constructor(
         speechRecognizer.stopListening()
         liveTranscript = null
         audioRecorder.cancelRecording()
+    }
+
+    private fun handleParsedVoiceAction(action: VoiceNoteAction) {
+        // Паттерн «Shadow Pre-fill» (Автозаполнение с правом вето):
+        // Если задача вводится голосом («Купить протеин до пятницы, срочно, категория здоровье»):
+        // Приложение сразу открывает знакомый экран добавления задачи с уже выставленными ИИ чипами.
+        val isSingleTaskFlow = action.tasksToAdd.isNotEmpty() &&
+            action.habitsCompleted.isEmpty() &&
+            action.tasksToDelete.isEmpty() &&
+            action.tasksToReschedule.isEmpty() &&
+            action.focusToStart == null &&
+            (action.digest == null || action.digest.isEmpty)
+
+        if (isSingleTaskFlow) {
+            val taskAction = action.tasksToAdd.first()
+            val draftTask = Task(
+                id = "task_" + UUID.randomUUID(),
+                title = taskAction.title,
+                dueDateIso = taskAction.dueDate,
+                priority = parsePriorityString(taskAction.priority),
+                category = normalizeTaskCategory(taskAction.category),
+                type = if (taskAction.taskType == TaskType.LONG.name) TaskType.LONG else TaskType.QUICK
+            )
+            if (taskAction.subtasks.isNotEmpty()) {
+                val subList: List<Subtask> = taskAction.subtasks.mapIndexed { idx: Int, st: String ->
+                    Subtask(
+                        id = "sub_" + UUID.randomUUID(),
+                        taskId = draftTask.id,
+                        title = st,
+                        isDone = false,
+                        position = idx
+                    )
+                }
+                _state.update { s ->
+                    val updatedSubtasks = s.subtasks.toMutableMap()
+                    updatedSubtasks[draftTask.id] = subList
+                    s.copy(
+                        isLoading = false,
+                        pendingReviewAction = null,
+                        selectedTaskForEdit = draftTask,
+                        subtasks = updatedSubtasks,
+                        infoMessage = null
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        pendingReviewAction = null,
+                        selectedTaskForEdit = draftTask,
+                        infoMessage = null
+                    )
+                }
+            }
+        } else {
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    pendingReviewAction = action,
+                    infoMessage = null
+                )
+            }
+        }
+    }
+
+    private fun normalizeTaskCategory(category: String?): String {
+        if (category.isNullOrBlank()) return "General"
+        val lower = category.trim().lowercase(Locale.ROOT)
+        return when {
+            lower.contains("здоров") || lower.contains("health") || lower.contains("спорт") || lower.contains("fitness") -> "Health"
+            lower.contains("работ") || lower.contains("work") || lower.contains("бизнес") || lower.contains("проект") -> "Work"
+            lower.contains("дом") || lower.contains("home") || lower.contains("быт") -> "Home"
+            lower.contains("учеб") || lower.contains("учёб") || lower.contains("study") || lower.contains("книг") -> "Study"
+            lower.contains("голос") -> "Голосовое"
+            else -> category.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+        }
+    }
+
+    private fun parsePriorityString(prio: String?): Priority {
+        if (prio.isNullOrBlank()) return Priority.MEDIUM
+        val lower = prio.trim().lowercase(Locale.ROOT)
+        return when {
+            lower.contains("критич") || lower.contains("срочн") || lower.contains("urgent") || lower.contains("critical") || lower.contains("high") || lower.contains("высок") -> Priority.HIGH
+            lower.contains("низк") || lower.contains("low") -> Priority.LOW
+            else -> Priority.MEDIUM
+        }
     }
 
     fun applyVoiceAction(action: VoiceNoteAction) {
@@ -974,7 +1060,12 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun updateTask(task: Task) {
         viewModelScope.launch {
-            taskRepository.updateTask(task)
+            val exists = taskRepository.getAllTasksList().any { it.id == task.id }
+            if (exists) {
+                taskRepository.updateTask(task)
+            } else {
+                taskRepository.insertTask(task)
+            }
             // F9: напоминание перепланируется при каждом сохранении.
             com.voicehabit.tracker.worker.ReminderRescheduler.scheduleTaskReminder(
                 getApplication(), task.id, task.title, task.dueDateIso, task.reminderMinutesBefore
@@ -1050,7 +1141,7 @@ class HomeViewModel @JvmOverloads constructor(
                 com.voicehabit.tracker.widget.DuroHabitCardWidgetProvider.updateAllCardWidgets(getApplication())
                 _state.update {
                     it.copy(
-                        infoMessage = "Запись от ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(log.createdAt))} повторно применена! 🔥"
+                        infoMessage = "Запись от ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(log.createdAt))} повторно применена."
                     )
                 }
             }
@@ -1293,7 +1384,7 @@ class HomeViewModel @JvmOverloads constructor(
         viewModelScope.launch(dispatchers.io) {
             when (extras.freezeDay(LocalDate.now())) {
                 com.voicehabit.tracker.data.repository.FreezeResult.OK ->
-                    showSnackbar("❄ День заморожен: стрик не прервётся")
+                    showSnackbar("День заморожен: стрик не прервётся")
                 com.voicehabit.tracker.data.repository.FreezeResult.LIMIT ->
                     showSnackbar("Лимит заморозок — 2 в неделю")
             }
@@ -1306,7 +1397,7 @@ class HomeViewModel @JvmOverloads constructor(
         viewModelScope.launch(dispatchers.io) {
             when (extras.freezeDay(LocalDate.now().minusDays(1))) {
                 com.voicehabit.tracker.data.repository.FreezeResult.OK -> {
-                    showSnackbar("❄ Вчерашний день восстановлен заморозкой")
+                    showSnackbar("Вчерашний день восстановлен заморозкой")
                     recomputeAllStreaks()
                 }
                 com.voicehabit.tracker.data.repository.FreezeResult.LIMIT ->
@@ -1408,7 +1499,7 @@ class HomeViewModel @JvmOverloads constructor(
                     marked++
                 }
             }
-            showSnackbar("⚡ Рутина «${routine.title}»: отмечено $marked")
+            showSnackbar("Рутина «${routine.title}»: отмечено $marked")
             evaluateAchievements(routineExecuted = true)
             refreshWidgets()
         }
@@ -1428,7 +1519,7 @@ class HomeViewModel @JvmOverloads constructor(
                 marked++
             }
         }
-        showSnackbar("⚡ Рутина «${routine.title}»: отмечено $marked")
+        showSnackbar("Рутина «${routine.title}»: отмечено $marked")
         evaluateAchievements(routineExecuted = true)
         return true
     }
@@ -1496,7 +1587,7 @@ class HomeViewModel @JvmOverloads constructor(
         val newly = extras.evaluateAchievements(snapshot)
         for (id in newly) {
             val def = com.voicehabit.tracker.domain.model.ALL_ACHIEVEMENTS.find { it.id == id }
-            showSnackbar("🏆 Достижение: ${def?.title ?: id}")
+            showSnackbar("Достижение: ${def?.title ?: id}")
             speak("Новое достижение: ${def?.title ?: id}")
         }
     }
@@ -1573,18 +1664,202 @@ class HomeViewModel @JvmOverloads constructor(
         focusTicker?.cancel()
         val totalSec = (minutes.coerceIn(1, 180)) * 60
         _state.update {
-            it.copy(focusRun = FocusRun(totalSec, totalSec, label, taskId, habitId))
+            it.copy(
+                focusRun = FocusRun(
+                    totalSec = totalSec,
+                    remainingSec = totalSec,
+                    label = label,
+                    taskId = taskId,
+                    habitId = habitId
+                )
+            )
         }
+        startFocusTimerLoop(totalSec)
+    }
+
+    enum class MentalEnergy { FATIGUED, NORMAL }
+
+    /**
+     * Калибровка под ментальное состояние (State-Aware Calibration):
+     * Инспектирует недавние записи в дневнике. При обнаружении усталости/тревоги
+     * молча запускает микро-спринт на 15 минут (micro-commitment) без снисходительного текста жалости.
+     */
+    fun detectMentalState(): MentalEnergy {
+        val recent = _state.value.digests.take(5)
+        val fatigueKeywords = listOf("устал", "устала", "нет сил", "выгоран", "тяжело", "перегруз", "стресс", "сонлив", "тревож", "апатия")
+        val isFatigued = recent.any { record ->
+            val tone = record.tone.lowercase(Locale.ROOT)
+            val content = (record.gist + " " + record.transcript).lowercase(Locale.ROOT)
+            tone.contains("тревож") || tone.contains("устал") || tone.contains("стресс") ||
+                fatigueKeywords.any { content.contains(it) }
+        }
+        return if (isFatigued) MentalEnergy.FATIGUED else MentalEnergy.NORMAL
+    }
+
+    /**
+     * Запуск Адаптивного Спринта (Flow Engine).
+     */
+    fun startAdaptiveFocus(label: String, taskId: String? = null, habitId: String? = null) {
+        val energy = detectMentalState()
+        val durationMin = if (energy == MentalEnergy.FATIGUED) 15 else 25
+        val initialStep = "Открыть материалы и подготовить черновик: $label"
+
+        focusTicker?.cancel()
+        val totalSec = durationMin * 60
+        _state.update {
+            it.copy(
+                focusRun = FocusRun(
+                    totalSec = totalSec,
+                    remainingSec = totalSec,
+                    label = label,
+                    taskId = taskId,
+                    habitId = habitId,
+                    isAdaptiveMicroSprint = true,
+                    currentStep = initialStep,
+                    completedSteps = emptyList()
+                )
+            )
+        }
+        startFocusTimerLoop(totalSec)
+
+        // Фоново уточняем атомарный шаг через Gemini при наличии API-ключа
+        if (settings.effectiveGeminiApiKey.isNotBlank()) {
+            viewModelScope.launch(dispatchers.io) {
+                val enhanced = directAiService.decomposeFocusStep(
+                    taskOrGoal = label,
+                    currentStep = null,
+                    geminiApiKey = settings.effectiveGeminiApiKey,
+                    userPersonaContext = settings.getUserPersonaContext()
+                ).getOrNull()
+                if (!enhanced.isNullOrBlank()) {
+                    withContext(dispatchers.main) {
+                        _state.update { s ->
+                            s.copy(focusRun = s.focusRun?.copy(currentStep = enhanced))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startFocusTimerLoop(startRemainingSec: Int) {
         focusTicker = viewModelScope.launch {
-            var remaining = totalSec
+            var remaining = startRemainingSec
             while (remaining > 0) {
                 kotlinx.coroutines.delay(1000)
-                remaining--
-                _state.update { s ->
-                    s.copy(focusRun = s.focusRun?.copy(remainingSec = remaining))
+                val isPaused = _state.value.focusRun?.isPaused ?: false
+                if (!isPaused) {
+                    remaining--
+                    _state.update { s ->
+                        s.copy(focusRun = s.focusRun?.copy(remainingSec = remaining))
+                    }
                 }
             }
             finishFocus(completed = true)
+        }
+    }
+
+    /** Динамическая атомизация: закрыть текущий физический шаг и запросить следующий. */
+    fun completeCurrentFocusStep() {
+        val run = _state.value.focusRun ?: return
+        val step = run.currentStep ?: return
+        val updatedSteps = run.completedSteps + step
+        val nextStepFallback = "Выполнить следующий конкретный шаг по задаче"
+
+        _state.update { s ->
+            s.copy(
+                focusRun = s.focusRun?.copy(
+                    completedSteps = updatedSteps,
+                    currentStep = nextStepFallback
+                )
+            )
+        }
+
+        if (settings.effectiveGeminiApiKey.isNotBlank()) {
+            viewModelScope.launch(dispatchers.io) {
+                val nextStepAi = directAiService.decomposeFocusStep(
+                    taskOrGoal = run.label,
+                    currentStep = step,
+                    geminiApiKey = settings.effectiveGeminiApiKey,
+                    userPersonaContext = settings.getUserPersonaContext()
+                ).getOrNull()
+                if (!nextStepAi.isNullOrBlank()) {
+                    withContext(dispatchers.main) {
+                        _state.update { s ->
+                            s.copy(focusRun = s.focusRun?.copy(currentStep = nextStepAi))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Переопределение в один тап: сменить шаг без объяснений. */
+    fun overrideCurrentFocusStep(customStep: String? = null) {
+        val run = _state.value.focusRun ?: return
+        val newStep = customStep?.takeIf { it.isNotBlank() } ?: "Сделать альтернативный короткий шаг"
+        _state.update { s ->
+            s.copy(focusRun = s.focusRun?.copy(currentStep = newStep))
+        }
+    }
+
+    /** Голосовой штурман при паузе (Focus Guard). */
+    fun pauseFocus() {
+        _state.update { s ->
+            s.copy(focusRun = s.focusRun?.copy(isPaused = true, pauseReasonPrompt = true))
+        }
+    }
+
+    fun resumeFocus() {
+        _state.update { s ->
+            s.copy(focusRun = s.focusRun?.copy(isPaused = false, pauseReasonPrompt = false))
+        }
+    }
+
+    /** Focus Guard: [Затык в задаче] разбивает шаг на 2-минутное микро-действие. */
+    fun resolveFocusBlocker() {
+        val run = _state.value.focusRun ?: return
+        val microStep = "Снять затык: записать 1 простое действие или черновик за 2 минуты"
+        _state.update { s ->
+            s.copy(
+                focusRun = s.focusRun?.copy(
+                    isPaused = false,
+                    pauseReasonPrompt = false,
+                    currentStep = microStep
+                )
+            )
+        }
+    }
+
+    /** Focus Guard: [Отвлекли] держит таймер на паузе в тишине. */
+    fun confirmDistraction() {
+        _state.update { s ->
+            s.copy(focusRun = s.focusRun?.copy(pauseReasonPrompt = false))
+        }
+    }
+
+    fun dismissFocusDebrief() {
+        _state.update { it.copy(focusDebriefRun = null) }
+    }
+
+    fun saveFocusDebriefToObsidian(notes: String) {
+        val debrief = _state.value.focusDebriefRun ?: return
+        viewModelScope.launch(dispatchers.io) {
+            val result = container.obsidianVaultManager.exportFocusSprint(
+                label = debrief.label,
+                durationMin = debrief.totalSec / 60,
+                completed = true,
+                debriefNotes = notes.ifBlank { null },
+                steps = debrief.completedSteps
+            )
+            withContext(dispatchers.main) {
+                _state.update { it.copy(focusDebriefRun = null) }
+                if (result.isSuccess) {
+                    showSnackbar("Спринт сохранён в Obsidian: ${result.getOrNull()?.relativePath}")
+                } else {
+                    showSnackbar("Не удалось сохранить в Obsidian: ${result.exceptionOrNull()?.message}")
+                }
+            }
         }
     }
 
@@ -1608,7 +1883,7 @@ class HomeViewModel @JvmOverloads constructor(
     private fun finishFocus(completed: Boolean) {
         val run = _state.value.focusRun ?: return
         focusTicker = null
-        _state.update { it.copy(focusRun = null) }
+        _state.update { it.copy(focusRun = null, focusDebriefRun = run) }
         viewModelScope.launch(dispatchers.io) {
             extras.saveFocusSession(
                 com.voicehabit.tracker.domain.model.FocusSession(
@@ -1616,9 +1891,43 @@ class HomeViewModel @JvmOverloads constructor(
                     label = run.label, durationMin = run.totalSec / 60, completed = completed
                 )
             )
-            showSnackbar("🧠 Фокус завершён: ${run.label} (${run.totalSec / 60} мин)")
-            speak("Фокус завершён. Отличная работа!")
-            evaluateAchievements()
+            withContext(dispatchers.main) {
+                showSnackbar("Фокус завершён: ${run.label} (${run.totalSec / 60} мин)")
+                speak("Фокус завершён.")
+                evaluateAchievements()
+            }
+        }
+    }
+
+    // ---------- Модуль «Контекст обо мне» (User Persona & Memory Engine) ----------
+
+    fun saveUserPersona(hardFacts: String, activeFocus: String) {
+        val sm = settings
+        sm.userPersonaHardFacts = hardFacts
+        sm.userPersonaActiveFocus = activeFocus
+        _state.update {
+            it.copy(
+                userPersonaHardFacts = hardFacts,
+                userPersonaActiveFocus = activeFocus
+            )
+        }
+        showSnackbar("Контекст ИИ сохранён")
+    }
+
+    fun addMemoryFact(fact: String) {
+        if (fact.isBlank()) return
+        val sm = settings
+        sm.addMemoryFact(fact)
+        _state.update {
+            it.copy(userPersonaMemoryLog = sm.userPersonaMemoryLog)
+        }
+    }
+
+    fun deleteMemoryFact(fact: String) {
+        val sm = settings
+        sm.removeMemoryFact(fact)
+        _state.update {
+            it.copy(userPersonaMemoryLog = sm.userPersonaMemoryLog)
         }
     }
 
@@ -1671,7 +1980,7 @@ class HomeViewModel @JvmOverloads constructor(
         val s = _state.value.stats ?: return "Пока нет данных."
         val days = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
         return buildString {
-            appendLine("📊 Моя неделя в Duro:")
+            appendLine("Обзор недели:")
             appendLine("Выполнений всего: ${s.totalCompletions}")
             appendLine("Лучший день: ${days.getOrElse(s.bestWeekday) { "?" }}")
             appendLine("Фокуса за неделю: ${s.focusMinutesWeek} мин")

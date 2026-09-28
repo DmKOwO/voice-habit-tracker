@@ -59,6 +59,10 @@ fun ProfileMenuSheet(
             onDismiss()
             viewModel.openSettings()
         },
+        onOpenUserPersona = {
+            onDismiss()
+            viewModel.openScreen(AppScreen.USER_PERSONA)
+        },
         onOpenArchive = {
             onDismiss()
             viewModel.openScreen(AppScreen.ARCHIVE)
@@ -88,6 +92,7 @@ fun ProfileMenuSheet(
     obsidianVaultName: String = "Не подключено",
     onOpenObsidianSync: () -> Unit = {},
     onOpenSettings: () -> Unit,
+    onOpenUserPersona: () -> Unit = {},
     onOpenArchive: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
     onOpenOperationsLog: () -> Unit = {},
@@ -135,7 +140,7 @@ fun ProfileMenuSheet(
                         color = AppTheme.colors.textPrimary
                     )
                     Text(
-                        text = "dairy v1.2.0 • Minimalist Edition",
+                        text = "dairy • Minimalist Edition",
                         fontSize = 12.sp,
                         color = AppTheme.colors.textSecondary
                     )
@@ -146,6 +151,17 @@ fun ProfileMenuSheet(
 
             // Settings Items List
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProfileMenuItem(
+                    icon = Icons.Default.Psychology,
+                    title = "Контекст и память ИИ",
+                    subtitle = "Базовый профиль, активный фокус и память фактов",
+                    badgeColor = AppTheme.colors.accent,
+                    onClick = {
+                        onDismiss()
+                        onOpenUserPersona()
+                    }
+                )
+
                 ProfileMenuItem(
                     icon = Icons.Default.Settings,
                     title = "Настройки ИИ и API-ключей",

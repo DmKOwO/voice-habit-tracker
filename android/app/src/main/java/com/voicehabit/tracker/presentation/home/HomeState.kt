@@ -16,10 +16,10 @@ import com.voicehabit.tracker.domain.model.Task
 import com.voicehabit.tracker.domain.model.VoiceNoteAction
 
 /** 3 ключевые вкладки новой навигации: Ритм, Дневник, Обзор. */
-enum class MainTab(val title: String, val emoji: String) {
-    RHYTHM("Ритм", "🌿"),
-    JOURNAL("Дневник", "📖"),
-    OVERVIEW("Обзор", "⚡");
+enum class MainTab(val title: String) {
+    RHYTHM("Ритм"),
+    JOURNAL("Дневник"),
+    OVERVIEW("Обзор");
 
     val label: String get() = title
 }
@@ -30,7 +30,9 @@ enum class AppScreen {
     /** H1: конспекты свободного потока — «диктофон с выжимкой». */
     DIGESTS,
     /** Дневник мыслей первого класса. */
-    JOURNAL
+    JOURNAL,
+    /** Модуль «Контекст обо мне» (User Persona & Memory Engine). */
+    USER_PERSONA
 }
 
 /** Сортировка задач (G11). */
@@ -49,13 +51,19 @@ data class FocusDraft(
     val habitId: String? = null
 )
 
-/** Идущий фокус-таймер (G4/F8). */
+/** Идущий фокус-таймер и Flow Engine спринт (G4/F8). */
 data class FocusRun(
     val totalSec: Int,
     val remainingSec: Int,
     val label: String,
     val taskId: String? = null,
-    val habitId: String? = null
+    val habitId: String? = null,
+    val isPaused: Boolean = false,
+    val pauseReasonPrompt: Boolean = false,
+    val isAdaptiveMicroSprint: Boolean = false,
+    val currentStep: String? = null,
+    val completedSteps: List<String> = emptyList(),
+    val showDebriefModal: Boolean = false
 ) {
     val progress: Float get() = if (totalSec <= 0) 0f else 1f - remainingSec.toFloat() / totalSec
 }
@@ -124,12 +132,17 @@ data class HomeState(
     val unlockedAchievements: Set<String> = emptySet(),
     val focusSessions: List<FocusSession> = emptyList(),
     val focusRun: FocusRun? = null,
+    val focusDebriefRun: FocusRun? = null,
     val focusRequest: FocusStartAction? = null,
     val focusDraft: FocusDraft? = null,
     val reviews: List<Pair<Long, String>> = emptyList(),
     val daySummary: String? = null,
     // Конспекты свободного потока (H1)
     val digests: List<DigestRecord> = emptyList(),
+    // Модуль «Контекст обо мне»
+    val userPersonaHardFacts: String = "",
+    val userPersonaActiveFocus: String = "",
+    val userPersonaMemoryLog: Set<String> = emptySet(),
     // Подзадачи по открытым редакторам (F5)
     val subtasks: Map<String, List<Subtask>> = emptyMap(),
     // Статистика, настроение, здоровье (F15/G23/G26/F11)

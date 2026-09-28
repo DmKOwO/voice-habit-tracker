@@ -408,6 +408,64 @@ fun OverviewScreen(
             }
         }
 
+        // Adaptive Sprint Flow Engine Prompt Card
+        item {
+            Surface(
+                color = AppTheme.colors.surfaceElevated.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(20.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.openScreen(com.voicehabit.tracker.presentation.home.AppScreen.FOCUS)
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        color = AppTheme.colors.accent.copy(alpha = 0.12f),
+                        shape = CircleShape,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = AppTheme.colors.accent,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Адаптивный спринт (Flow Engine)",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppTheme.colors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Калибровка состояния, физические шаги и Focus Guard",
+                            fontSize = 12.sp,
+                            color = AppTheme.colors.textSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Открыть",
+                        tint = AppTheme.colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
         // Evening Review Prompt Card ("Вечерний дневник")
         item {
             Surface(

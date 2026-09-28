@@ -89,6 +89,9 @@ fun TaskEditorBottomSheet(
         state.subtasks[task.id] ?: emptyList()
     } ?: emptyList()
     val doneCount = subtasks.count { it.isDone }
+    val isExistingTask = remember(task.id, viewModel?.state?.value?.tasks) {
+        viewModel?.state?.value?.tasks?.any { it.id == task.id } == true
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -111,17 +114,17 @@ fun TaskEditorBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "РЕДАКТИРОВАНИЕ ЗАДАЧИ",
+                        text = if (isExistingTask) "РЕДАКТИРОВАНИЕ ЗАДАЧИ" else "НОВАЯ ЗАДАЧА",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppTheme.colors.accent,
                         letterSpacing = 1.sp
                     )
                     Text(
-                        text = if (task.isCompleted) "Выполнена" else "В работе",
+                        text = if (!isExistingTask) "Черновик (Голос)" else if (task.isCompleted) "Выполнена" else "В работе",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (task.isCompleted) DuroLime else DuroTextPrimary
+                        color = if (!isExistingTask) AppTheme.colors.textPrimary else if (task.isCompleted) DuroLime else DuroTextPrimary
                     )
                 }
                 Row {
@@ -132,15 +135,17 @@ fun TaskEditorBottomSheet(
                         Icon(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = if (pinned) "Открепить" else "Закрепить",
-                            tint = if (pinned) DuroOrange else DuroTextMuted,
+                            tint = if (pinned) AppTheme.colors.accent else DuroTextMuted,
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = {
+                        if (isExistingTask) onDelete() else onDismiss()
+                    }) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "В корзину",
-                            tint = DuroRed
+                            imageVector = if (isExistingTask) Icons.Default.Delete else Icons.Default.Close,
+                            contentDescription = if (isExistingTask) "В корзину" else "Отменить",
+                            tint = if (isExistingTask) DuroRed else DuroTextMuted
                         )
                     }
                 }
@@ -402,7 +407,7 @@ fun TaskEditorBottomSheet(
                             EditorChip(
                                 label = label,
                                 selected = dueTime.hour == hour && dueTime.minute == 0,
-                                accent = DuroOrange,
+                                accent = AppTheme.colors.accent,
                                 modifier = Modifier.weight(1f),
                                 onClick = { dueTime = LocalTime.of(hour, 0) }
                             )
@@ -457,7 +462,7 @@ fun TaskEditorBottomSheet(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("📅 В системный календарь", color = DuroTextPrimary)
+                    Text("В системный календарь", color = AppTheme.colors.textPrimary)
                 }
             }
 
@@ -465,15 +470,28 @@ fun TaskEditorBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = onToggleCompletion,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = if (task.isCompleted) DuroOrange else DuroLime
-                    )
-                ) {
-                    Text(if (task.isCompleted) "Вернуть в работу" else "Отметить выполненной")
+                if (isExistingTask) {
+                    OutlinedButton(
+                        onClick = onToggleCompletion,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (task.isCompleted) AppTheme.colors.accent else DuroLime
+                        )
+                    ) {
+                        Text(if (task.isCompleted) "Вернуть в работу" else "Отметить выполненной")
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = AppTheme.colors.textSecondary
+                        )
+                    ) {
+                        Text("Отменить")
+                    }
                 }
                 Button(
                     onClick = {
@@ -501,11 +519,11 @@ fun TaskEditorBottomSheet(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DuroOrange,
-                        contentColor = Color.White
+                        containerColor = AppTheme.colors.accent,
+                        contentColor = AppTheme.colors.onAccent
                     )
                 ) {
-                    Text("Сохранить", fontWeight = FontWeight.Bold)
+                    Text(if (isExistingTask) "Сохранить" else "Создать задачу", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -614,7 +632,7 @@ private fun FlowRowChips(
                     EditorChip(
                         label = item,
                         selected = item == selected,
-                        accent = DuroOrange,
+                        accent = AppTheme.colors.accent,
                         modifier = Modifier.weight(1f),
                         onClick = { onSelect(item) }
                     )
@@ -624,15 +642,6 @@ private fun FlowRowChips(
     }
 }
 
-@Composable
-private fun duroTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = DuroOrange,
-    unfocusedBorderColor = DuroBorder,
-    focusedTextColor = DuroTextPrimary,
-    unfocusedTextColor = DuroTextPrimary,
-    focusedContainerColor = DuroSurface,
-    unfocusedContainerColor = DuroSurface
-)
 
 private fun parseTaskDateTime(value: String?): LocalDateTime? {
     if (value.isNullOrBlank()) return null

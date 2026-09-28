@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,14 +95,38 @@ fun RoutinesScreen(viewModel: HomeViewModel) {
                                 color = DuroTextSecondary
                             )
                         }
-                        TextButton(onClick = { viewModel.runRoutine(routine.id) }) {
-                            Text(text = "▶", fontSize = 14.sp, color = DuroLime)
+                        IconButton(
+                            onClick = { viewModel.runRoutine(routine.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Запустить рутину",
+                                tint = AppTheme.colors.accent,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
-                        TextButton(onClick = { viewModel.openRoutineEditor(routine) }) {
-                            Text(text = "✎", fontSize = 14.sp, color = DuroTextSecondary)
+                        IconButton(
+                            onClick = { viewModel.openRoutineEditor(routine) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Редактировать",
+                                tint = AppTheme.colors.textSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
-                        TextButton(onClick = { viewModel.deleteRoutine(routine.id) }) {
-                            Text(text = "✕", fontSize = 14.sp, color = DuroRed)
+                        IconButton(
+                            onClick = { viewModel.deleteRoutine(routine.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Удалить",
+                                tint = AppTheme.colors.error,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }

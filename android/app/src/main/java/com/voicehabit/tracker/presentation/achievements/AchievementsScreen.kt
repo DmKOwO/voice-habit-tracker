@@ -6,8 +6,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.painterResource
+import com.voicehabit.tracker.R
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -22,6 +27,10 @@ import com.voicehabit.tracker.presentation.home.HomeViewModel
 import com.voicehabit.tracker.presentation.hub.ScreenHeader
 import com.voicehabit.tracker.presentation.theme.*
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
+
 /** F16: витрина достижений. */
 @Composable
 fun AchievementsScreen(viewModel: HomeViewModel) {
@@ -31,9 +40,8 @@ fun AchievementsScreen(viewModel: HomeViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-        .statusBarsPadding()
             .statusBarsPadding()
-            .background(DuroBackground)
+            .background(AppTheme.colors.background)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -53,26 +61,64 @@ fun AchievementsScreen(viewModel: HomeViewModel) {
                 Column(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(if (isUnlocked) DuroSurface else DuroBackground)
+                        .background(if (isUnlocked) AppTheme.colors.surface else AppTheme.colors.background)
                         .alpha(if (isUnlocked) 1f else 0.45f)
                         .padding(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = if (isUnlocked) def.icon else "🔒", fontSize = 32.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(if (isUnlocked) AppTheme.colors.accent.copy(alpha = 0.15f) else AppTheme.colors.surfaceElevated),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isUnlocked) {
+                            Icon(
+                                imageVector = getAchievementIcon(def.id),
+                                contentDescription = null,
+                                tint = AppTheme.colors.accent,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Заблокировано",
+                                tint = AppTheme.colors.textMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = def.title,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isUnlocked) DuroOrange else DuroTextSecondary
+                        color = if (isUnlocked) AppTheme.colors.accent else AppTheme.colors.textSecondary
                     )
                     Text(
                         text = def.description,
                         fontSize = 11.sp,
-                        color = DuroTextSecondary
+                        color = AppTheme.colors.textSecondary
                     )
                 }
             }
         }
     }
+}
+
+private fun getAchievementIcon(id: String): ImageVector = when (id) {
+    "first_habit" -> Icons.Default.AddCircleOutline
+    "first_voice" -> Icons.Default.Mic
+    "streak_7" -> Icons.Default.TrendingUp
+    "streak_30" -> Icons.Default.Diamond
+    "tasks_10" -> Icons.Default.CheckCircle
+    "tasks_100" -> Icons.Default.DoneAll
+    "focus_5" -> Icons.Default.Timer
+    "early_bird" -> Icons.Default.WbSunny
+    "night_owl" -> Icons.Default.Nightlight
+    "perfect_week" -> Icons.Default.Star
+    "routine_master" -> Icons.Default.PlayCircleOutline
+    "challenge_done" -> Icons.Default.Flag
+    else -> Icons.Default.EmojiEvents
 }

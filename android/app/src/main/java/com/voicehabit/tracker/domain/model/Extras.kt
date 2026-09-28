@@ -43,22 +43,22 @@ data class AchievementDef(
     val id: String,
     val title: String,
     val description: String,
-    val icon: String = "🏆"
+    val icon: String = ""
 )
 
 val ALL_ACHIEVEMENTS = listOf(
-    AchievementDef("first_habit", "Первая привычка", "Создайте первую привычку", "🌱"),
-    AchievementDef("first_voice", "Голосовой старт", "Первая запись голосом разобрана", "🎙️"),
-    AchievementDef("streak_7", "Неделя огня", "Стрик 7 дней подряд", "🔥"),
-    AchievementDef("streak_30", "Месяц дисциплины", "Стрик 30 дней подряд", "💎"),
-    AchievementDef("tasks_10", "Десятка", "Закрыто 10 задач", "✅"),
-    AchievementDef("tasks_100", "Сотня", "Закрыто 100 задач", "💯"),
-    AchievementDef("focus_5", "Глубокая работа", "5 завершённых фокус-сессий", "🧠"),
-    AchievementDef("early_bird", "Жаворонок", "Отметка до 7:00 утра", "🌅"),
-    AchievementDef("night_owl", "Сова", "Активность после 23:00", "🦉"),
-    AchievementDef("perfect_week", "Идеальная неделя", "7 дней подряд без пропусков", "👑"),
-    AchievementDef("routine_master", "Мастер рутин", "Выполнена голосовая рутина", "⚡"),
-    AchievementDef("challenge_done", "Челлендж пройден", "Завершён 30-дневный челлендж", "🏁")
+    AchievementDef("first_habit", "Первая привычка", "Создайте первую привычку", "habit"),
+    AchievementDef("first_voice", "Голосовой старт", "Первая запись голосом разобрана", "voice"),
+    AchievementDef("streak_7", "Неделя дисциплины", "Стрик 7 дней подряд", "streak7"),
+    AchievementDef("streak_30", "Месяц дисциплины", "Стрик 30 дней подряд", "streak30"),
+    AchievementDef("tasks_10", "Десятка", "Закрыто 10 задач", "task10"),
+    AchievementDef("tasks_100", "Сотня", "Закрыто 100 задач", "task100"),
+    AchievementDef("focus_5", "Глубокая работа", "5 завершённых фокус-сессий", "focus5"),
+    AchievementDef("early_bird", "Ранний подъём", "Отметка до 7:00 утра", "early"),
+    AchievementDef("night_owl", "Поздний фокус", "Активность после 23:00", "night"),
+    AchievementDef("perfect_week", "Идеальная неделя", "7 дней подряд без пропусков", "week"),
+    AchievementDef("routine_master", "Мастер рутин", "Выполнена голосовая рутина", "routine"),
+    AchievementDef("challenge_done", "Челлендж пройден", "Завершён 30-дневный челлендж", "challenge")
 )
 
 /** Сводная статистика для экрана (F15). */

@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -110,19 +113,35 @@ private fun ChallengeCard(viewModel: HomeViewModel, challenge: Challenge) {
                     color = if (done >= total) DuroLime else DuroOrange
                 )
             }
-            TextButton(onClick = { viewModel.openChallengeEditor(challenge) }) {
-                Text(text = "✎", color = DuroTextSecondary)
+            IconButton(
+                onClick = { viewModel.openChallengeEditor(challenge) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Редактировать",
+                    tint = AppTheme.colors.textSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
             }
-            TextButton(onClick = { viewModel.deleteChallenge(challenge.id) }) {
-                Text(text = "✕", color = DuroRed)
+            IconButton(
+                onClick = { viewModel.deleteChallenge(challenge.id) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Удалить",
+                    tint = AppTheme.colors.error,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         LinearProgressIndicator(
             progress = { if (total > 0) done.toFloat() / total else 0f },
             modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-            color = DuroLime,
-            trackColor = DuroBorder
+            color = AppTheme.colors.accent,
+            trackColor = AppTheme.colors.border
         )
         if (done >= total && challenge.isActive) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -131,10 +150,10 @@ private fun ChallengeCard(viewModel: HomeViewModel, challenge: Challenge) {
                     viewModel.saveChallenge(challenge.copy(isActive = false))
                     viewModel.evaluateChallengeDone()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = DuroLime),
+                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("🏁 Завершить челлендж", color = androidx.compose.ui.graphics.Color.Black)
+                Text("Завершить челлендж", color = AppTheme.colors.onAccent, fontWeight = FontWeight.Bold)
             }
         }
     }

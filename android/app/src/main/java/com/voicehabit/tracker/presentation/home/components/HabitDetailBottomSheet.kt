@@ -339,13 +339,13 @@ fun HabitDetailBottomSheet(
                         onClick = { viewModel.freezeToday() },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("❄ Заморозить день", fontSize = 12.sp, color = DuroTextPrimary)
+                        Text("Заморозить день", fontSize = 12.sp, color = AppTheme.colors.textPrimary)
                     }
                     OutlinedButton(
                         onClick = { viewModel.repairYesterday() },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("🩹 Вчерашний день", fontSize = 12.sp, color = DuroTextPrimary)
+                        Text("Отметить вчера", fontSize = 12.sp, color = AppTheme.colors.textPrimary)
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -355,9 +355,9 @@ fun HabitDetailBottomSheet(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            if (habit.pinned) "📌 Открепить" else "📍 Закрепить",
+                            if (habit.pinned) "Открепить" else "Закрепить",
                             fontSize = 12.sp,
-                            color = DuroTextPrimary
+                            color = AppTheme.colors.textPrimary
                         )
                     }
                     OutlinedButton(

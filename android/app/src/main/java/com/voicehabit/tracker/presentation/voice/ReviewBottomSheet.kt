@@ -75,7 +75,7 @@ fun ReviewBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    DuroAsterisk(size = 20.dp, color = DuroOrange)
+                    DuroAsterisk(size = 20.dp, color = AppTheme.colors.accent)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Разбор записи",
@@ -231,7 +231,7 @@ fun ReviewBottomSheet(
                             text = "ПРИВЫЧКИ К ОТМЕТКЕ / СОЗДАНИЮ",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroOrange,
+                            color = AppTheme.colors.accent,
                             letterSpacing = 1.sp
                         )
                     }
@@ -261,7 +261,7 @@ fun ReviewBottomSheet(
                                             }
                                         },
                                         colors = CheckboxDefaults.colors(
-                                            checkedColor = DuroOrange,
+                                            checkedColor = AppTheme.colors.accent,
                                             uncheckedColor = DuroTextMuted
                                         )
                                     )
@@ -386,7 +386,7 @@ fun ReviewBottomSheet(
                                             }
                                         },
                                         colors = CheckboxDefaults.colors(
-                                            checkedColor = DuroOrange,
+                                            checkedColor = AppTheme.colors.accent,
                                             uncheckedColor = DuroTextMuted
                                         )
                                     )
@@ -401,7 +401,7 @@ fun ReviewBottomSheet(
                                             Text(
                                                 text = formatDue(taskAction.dueDate),
                                                 fontSize = 11.sp,
-                                                color = DuroOrange
+                                                color = AppTheme.colors.accent
                                             )
                                         }
                                     }
@@ -459,8 +459,8 @@ fun ReviewBottomSheet(
                         .weight(1.5f)
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (action.mode == IntentMode.JOURNAL) DuroJournalLavender else DuroOrange,
-                        contentColor = Color.White
+                        containerColor = if (action.mode == IntentMode.JOURNAL) AppTheme.colors.accentSecondary else AppTheme.colors.accent,
+                        contentColor = AppTheme.colors.onAccent
                     ),
                     shape = RoundedCornerShape(14.dp)
                 ) {

@@ -73,10 +73,12 @@ class DirectAiService(
         clientCurrentTimeIso: String,
         timezone: String,
         activeHabitsJson: String,
-        openTasksJson: String
+        openTasksJson: String,
+        userPersonaContext: String = ""
     ): Result<Pair<JsonObject, Int>> = withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()
         try {
+            val personaSection = if (userPersonaContext.isNotBlank()) "- Контекст пользователя (профиль, стек, текущий фокус, память):\n$userPersonaContext\n" else ""
             val systemInstructionText = """
 Ты — персональный AI-ассистент продуктивности и трекинга привычек Duro.
 Твоя задача — разобрать поток мыслей пользователя на отдельные решения (намерение → срок → действие) и вернуть JSON.
@@ -85,6 +87,7 @@ class DirectAiService(
 - Текущее время: $clientCurrentTimeIso (Таймзона: $timezone)
 - Активные привычки: $activeHabitsJson
 - Открытые задачи: $openTasksJson
+$personaSection
 
 ШАГ 0. СНАЧАЛА ОПРЕДЕЛИ РЕЖИМ (поле "mode"). Это главное решение, от него зависит всё остальное.
   - "LOG"     — человек ставит поручение или отчитывается: «напомни купить хлеб завтра», «выпил таблетки».
@@ -118,6 +121,10 @@ class DirectAiService(
    - tone — эмоциональный тон/настроение («Спокойное», «Вдохновленное», «Тревожное», «Аналитическое») или "" если тон нейтральный.
    - title — ёмкая и точная тема мысли одной строкой до 50 символов (например: «Размышления о смене фокуса в работе»).
 
+8. Контекст пользователя и прозрачная память:
+   - Если пользователь формулирует задачу или проект в терминах своего стека/профиля, учитывай это для выбора точной категории (Work, Health, Study, Home, General) и приоритета.
+   - Если в речи пользователя есть новые устойчивые факты о нём (новые проекты, роли, привычки, стек технологий), добавь их в массив inferred_facts (до 3 фактов, лаконично одной строкой).
+
 Требования к JSON:
 {
   "mode": "LOG | JOURNAL | DICTATE | MIXED | QUERY",
@@ -125,6 +132,7 @@ class DirectAiService(
   "mode_reason": "почему такой режим",
   "summary": "краткое резюме на русском",
   "insights": ["шаг рассуждения 1", "шаг рассуждения 2"],
+  "inferred_facts": ["новый факт о пользователе 1"],
   "digest": {
     "title": "тема разговора",
     "gist": "суть в 1-2 предложения",
@@ -243,6 +251,71 @@ class DirectAiService(
             val duration = (System.currentTimeMillis() - start).toInt()
 
             Result.success(Pair(parsedOutput, duration))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Flow Engine: генерирует ОДНО атомарное физическое действие на 5–7 минут.
+     */
+    suspend fun decomposeFocusStep(
+        taskOrGoal: String,
+        currentStep: String?,
+        geminiApiKey: String,
+        userPersonaContext: String = ""
+    ): Result<String> = withContext(Dispatchers.IO) {
+        if (geminiApiKey.isBlank()) {
+            return@withContext Result.failure(IllegalStateException("No Gemini API key"))
+        }
+        try {
+            val prompt = """
+Ты — Flow Engine штурман глубокой работы.
+Пользователь работает над задачей: "$taskOrGoal".
+${if (!currentStep.isNullOrBlank()) "Предыдущий шаг: \"$currentStep\"." else "Это старт работы."}
+${if (userPersonaContext.isNotBlank()) "Контекст пользователя: $userPersonaContext" else ""}
+
+Сформулируй ОДНО единственное атомарное физическое действие на 5–7 минут.
+Требования:
+1. Конкретный глагол + физический объект (например: «Открыть файл README и выписать 3 пункта структуры», «Написать черновик первого метода без тестов»).
+2. Выполнимо ровно за 5–7 минут. Никаких абстракций.
+3. Строго без эмодзи, без подбадриваний и без жалости.
+4. Верни ТОЛЬКО текст этого действия (одно предложение), без кавычек и префиксов.
+            """.trimIndent()
+
+            val requestJson = JsonObject().apply {
+                val contentsArray = com.google.gson.JsonArray().apply {
+                    add(JsonObject().apply {
+                        addProperty("role", "user")
+                        add("parts", com.google.gson.JsonArray().apply {
+                            add(JsonObject().apply {
+                                addProperty("text", prompt)
+                            })
+                        })
+                    })
+                }
+                add("contents", contentsArray)
+            }
+
+            val request = Request.Builder()
+                .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiApiKey")
+                .post(requestJson.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("Gemini error (${response.code}): $responseBody"))
+            }
+            val json = JsonParser.parseString(responseBody).asJsonObject
+            val text = json.getAsJsonArray("candidates")
+                ?.get(0)?.asJsonObject
+                ?.getAsJsonObject("content")
+                ?.getAsJsonArray("parts")
+                ?.get(0)?.asJsonObject
+                ?.get("text")?.asString?.trim() ?: ""
+
+            Result.success(text.replace("\"", "").trim())
         } catch (e: Exception) {
             Result.failure(e)
         }

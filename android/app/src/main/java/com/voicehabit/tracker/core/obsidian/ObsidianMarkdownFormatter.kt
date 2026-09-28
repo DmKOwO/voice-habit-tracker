@@ -76,7 +76,7 @@ object ObsidianMarkdownFormatter {
 
         // Ключевые тезисы
         if (record.keyPoints.isNotEmpty()) {
-            appendLine("## 📌 Ключевые тезисы")
+            appendLine("## Ключевые тезисы")
             record.keyPoints.forEach { point ->
                 appendLine("- $point")
             }
@@ -85,7 +85,7 @@ object ObsidianMarkdownFormatter {
 
         // Принятые решения (Dataview format: - [x])
         if (record.decisions.isNotEmpty()) {
-            appendLine("## 🎯 Принятые решения")
+            appendLine("## Принятые решения")
             record.decisions.forEach { decision ->
                 appendLine("- [x] $decision")
             }
@@ -94,7 +94,7 @@ object ObsidianMarkdownFormatter {
 
         // Следующие шаги / Action Items (Dataview format: - [ ])
         if (record.nextSteps.isNotEmpty()) {
-            appendLine("## 🚀 Следующие шаги (Action Items)")
+            appendLine("## Следующие шаги (Action Items)")
             record.nextSteps.forEach { step ->
                 appendLine("- [ ] $step")
             }
@@ -103,7 +103,7 @@ object ObsidianMarkdownFormatter {
 
         // Открытые вопросы
         if (record.openQuestions.isNotEmpty()) {
-            appendLine("## ❓ Открытые вопросы")
+            appendLine("## Открытые вопросы")
             record.openQuestions.forEach { question ->
                 appendLine("- $question")
             }
@@ -124,14 +124,14 @@ object ObsidianMarkdownFormatter {
 
         // Аудиоплеер Obsidian (wikilink embed)
         if (!audioRelativePath.isNullOrBlank()) {
-            appendLine("## 🎙 Оригинальная запись")
+            appendLine("## Оригинальная запись")
             appendLine("![[$audioRelativePath]]")
             appendLine()
         }
 
         // Полная стенограмма
         if (record.transcript.isNotBlank()) {
-            appendLine("## 📝 Стенограмма аудиозаписи")
+            appendLine("## Стенограмма аудиозаписи")
             appendLine(record.transcript.trim())
             appendLine()
         }
@@ -173,10 +173,10 @@ object ObsidianMarkdownFormatter {
 
         // Привычки
         if (habits.isNotEmpty()) {
-            appendLine("## 🌿 Привычки")
+            appendLine("## Привычки")
             habits.forEach { habit ->
                 val checkbox = if (habit.isCompletedToday) "[x]" else "[ ]"
-                val streakStr = if (habit.currentStreak > 0) " (🔥 ${habit.currentStreak} дн.)" else ""
+                val streakStr = if (habit.currentStreak > 0) " (${habit.currentStreak} дн.)" else ""
                 val categoryStr = if (habit.category.isNotBlank()) " #${sanitizeTag(habit.category)}" else ""
                 appendLine("- $checkbox ${habit.title}$streakStr$categoryStr")
             }
@@ -185,7 +185,7 @@ object ObsidianMarkdownFormatter {
 
         // Задачи
         if (tasks.isNotEmpty()) {
-            appendLine("## 🎯 Задачи")
+            appendLine("## Задачи")
             val pending = tasks.filter { !it.isCompleted }
             val completed = tasks.filter { it.isCompleted }
 
@@ -197,7 +197,7 @@ object ObsidianMarkdownFormatter {
                         "LOW" -> " #priority/low"
                         else -> ""
                     }
-                    val dueStr = task.dueDateIso?.let { " 📅 $it" } ?: ""
+                    val dueStr = task.dueDateIso?.let { " до $it" } ?: ""
                     appendLine("- [ ] ${task.title}$dueStr$priorityTag")
                 }
                 appendLine()
@@ -210,6 +210,52 @@ object ObsidianMarkdownFormatter {
                 }
                 appendLine()
             }
+        }
+    }
+
+    /**
+     * Форматирует отчёт о завершённом спринте фокуса для сохранения в Obsidian.
+     */
+    fun formatFocusSprint(
+        label: String,
+        durationMin: Int,
+        completed: Boolean,
+        debriefNotes: String? = null,
+        steps: List<String> = emptyList()
+    ): String = buildString {
+        val createdDate = Date()
+        val formattedDate = dateTimeFormat.format(createdDate)
+        val title = label.ifBlank { "Фокус-спринт" }
+
+        appendLine("---")
+        appendLine("title: \"${escapeYaml(title)}\"")
+        appendLine("date: $formattedDate")
+        appendLine("type: focus-sprint")
+        appendLine("duration_minutes: $durationMin")
+        appendLine("completed: $completed")
+        appendLine("tags:")
+        appendLine("  - focus")
+        appendLine("  - flow-sprint")
+        appendLine("---")
+        appendLine()
+        appendLine("# $title")
+        appendLine()
+        appendLine("> [!info] Сессия фокуса")
+        appendLine("> Длительность: $durationMin мин | Статус: ${if (completed) "Завершено" else "Прервано"}")
+        appendLine()
+
+        if (!debriefNotes.isNullOrBlank()) {
+            appendLine("## Дебрифинг и инсайты")
+            appendLine(debriefNotes)
+            appendLine()
+        }
+
+        if (steps.isNotEmpty()) {
+            appendLine("## Выполненные шаги")
+            steps.forEach { step ->
+                appendLine("- [x] $step")
+            }
+            appendLine()
         }
     }
 

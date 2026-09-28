@@ -231,10 +231,10 @@ fun SettingsDialog(
                             }
                             isTesting = false
                             testStatus = when {
-                                groqOk && geminiOk -> "✅ Groq и Gemini готовы к работе!"
-                                groqOk && !geminiOk -> "⚠️ Groq подключен, ошибка ключа Gemini"
-                                !groqOk && geminiOk -> "⚠️ Gemini подключен, ошибка ключа Groq"
-                                else -> "❌ Ошибка проверки ключей. Проверьте интернет и правильность ключей."
+                                groqOk && geminiOk -> "Groq и Gemini готовы к работе"
+                                groqOk && !geminiOk -> "Groq подключен, ошибка ключа Gemini"
+                                !groqOk && geminiOk -> "Gemini подключен, ошибка ключа Groq"
+                                else -> "Ошибка проверки ключей. Проверьте интернет и правильность ключей."
                             }
                         }
                     },
@@ -253,7 +253,7 @@ fun SettingsDialog(
                         text = testStatus!!,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (testStatus!!.startsWith("✅")) DuroLime else DuroOrange
+                        color = if (testStatus!!.contains("готовы")) AppTheme.colors.accent else AppTheme.colors.error
                     )
                 }
 
@@ -524,7 +524,7 @@ fun SettingsDialog(
                 if (voskOn) {
                     Text(
                         text = when (voskStatus?.first) {
-                            "READY" -> "Модель готова ✅"
+                            "READY" -> "Модель готова"
                             "DOWNLOADING" -> "Скачивание: ${(100 * (voskStatus?.second ?: 0f)).toInt()}%"
                             "ERROR" -> "Ошибка загрузки — проверьте сеть"
                             else -> "Модель не загружена"

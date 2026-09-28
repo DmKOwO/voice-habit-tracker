@@ -118,6 +118,50 @@ class SettingsManager(context: Context) {
     val hasObsidianVault: Boolean
         get() = obsidianVaultUri.isNotBlank()
 
+    // ---------- Контекст обо мне (User Persona & Memory Engine) ----------
+
+    var userPersonaHardFacts: String
+        get() = prefs.getString(KEY_USER_PERSONA_HARD_FACTS, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_USER_PERSONA_HARD_FACTS, value.trim()).apply()
+
+    var userPersonaActiveFocus: String
+        get() = prefs.getString(KEY_USER_PERSONA_ACTIVE_FOCUS, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_USER_PERSONA_ACTIVE_FOCUS, value.trim()).apply()
+
+    var userPersonaMemoryLog: Set<String>
+        get() = prefs.getStringSet(KEY_USER_PERSONA_MEMORY_LOG, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_USER_PERSONA_MEMORY_LOG, value).apply()
+
+    fun addMemoryFact(fact: String) {
+        val trimmed = fact.trim()
+        if (trimmed.isNotBlank()) {
+            val updated = userPersonaMemoryLog.toMutableSet()
+            updated.add(trimmed)
+            userPersonaMemoryLog = updated
+        }
+    }
+
+    fun removeMemoryFact(fact: String) {
+        val updated = userPersonaMemoryLog.toMutableSet()
+        updated.remove(fact)
+        userPersonaMemoryLog = updated
+    }
+
+    fun getUserPersonaContext(): String {
+        val sb = StringBuilder()
+        if (userPersonaHardFacts.isNotBlank()) {
+            sb.appendLine("Базовый профиль и стек: $userPersonaHardFacts")
+        }
+        if (userPersonaActiveFocus.isNotBlank()) {
+            sb.appendLine("Текущий фокус: $userPersonaActiveFocus")
+        }
+        if (userPersonaMemoryLog.isNotEmpty()) {
+            sb.appendLine("Факты памяти ИИ:")
+            userPersonaMemoryLog.take(15).forEach { sb.appendLine("- $it") }
+        }
+        return sb.toString().trim()
+    }
+
     companion object {
         /** Канал OTA по умолчанию: релизы на аккаунте владельца. */
         const val DEFAULT_GITHUB_REPO = "DmKOwO/voice-habit-tracker"
@@ -141,6 +185,9 @@ class SettingsManager(context: Context) {
         private const val KEY_LAST_WEEKLY_REVIEW = "key_last_weekly_review"
         private const val KEY_LAST_AUTO_BACKUP = "key_last_auto_backup"
         private const val KEY_CUSTOM_CATEGORIES = "key_custom_categories"
+        private const val KEY_USER_PERSONA_HARD_FACTS = "key_user_persona_hard_facts"
+        private const val KEY_USER_PERSONA_ACTIVE_FOCUS = "key_user_persona_active_focus"
+        private const val KEY_USER_PERSONA_MEMORY_LOG = "key_user_persona_memory_log"
 
         @Volatile
         private var INSTANCE: SettingsManager? = null
