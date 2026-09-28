@@ -101,9 +101,22 @@ class SettingsManager(context: Context) {
     val customCategories: List<String>
         get() = customCategoriesCsv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
+    var obsidianVaultUri: String
+        get() = prefs.getString(KEY_OBSIDIAN_VAULT_URI, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_OBSIDIAN_VAULT_URI, value.trim()).apply()
+
+    var obsidianAutoExport: Boolean
+        get() = prefs.getBoolean(KEY_OBSIDIAN_AUTO_EXPORT, false)
+        set(value) = prefs.edit().putBoolean(KEY_OBSIDIAN_AUTO_EXPORT, value).apply()
+
+    val hasObsidianVault: Boolean
+        get() = obsidianVaultUri.isNotBlank()
+
     companion object {
         /** Канал OTA по умолчанию: релизы на аккаунте владельца. */
         const val DEFAULT_GITHUB_REPO = "DmKOwO/voice-habit-tracker"
+        private const val KEY_OBSIDIAN_VAULT_URI = "key_obsidian_vault_uri"
+        private const val KEY_OBSIDIAN_AUTO_EXPORT = "key_obsidian_auto_export"
         private const val KEY_GROQ_API_KEY = "key_groq_api_key"
         private const val KEY_GEMINI_API_KEY = "key_gemini_api_key"
         private const val KEY_BACKEND_URL = "key_backend_url"

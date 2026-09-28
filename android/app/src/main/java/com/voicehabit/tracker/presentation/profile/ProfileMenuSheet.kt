@@ -25,6 +25,9 @@ import com.voicehabit.tracker.presentation.theme.*
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.voicehabit.tracker.presentation.home.AppScreen
 import com.voicehabit.tracker.presentation.home.HomeViewModel
 
@@ -36,8 +39,22 @@ fun ProfileMenuSheet(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
+    var showObsidianSyncSheet by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (showObsidianSyncSheet) {
+        ObsidianSyncSheet(
+            viewModel = viewModel,
+            onDismiss = { showObsidianSyncSheet = false }
+        )
+    }
+
     ProfileMenuSheet(
         hasApiKeys = state.hasApiKeysConfigured,
+        isObsidianConfigured = state.isObsidianConfigured,
+        obsidianVaultName = state.obsidianVaultName,
+        onOpenObsidianSync = {
+            showObsidianSyncSheet = true
+        },
         onOpenSettings = {
             onDismiss()
             viewModel.openSettings()
@@ -67,6 +84,9 @@ fun ProfileMenuSheet(
 @Composable
 fun ProfileMenuSheet(
     hasApiKeys: Boolean,
+    isObsidianConfigured: Boolean = false,
+    obsidianVaultName: String = "Не подключено",
+    onOpenObsidianSync: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onOpenArchive: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
@@ -140,10 +160,10 @@ fun ProfileMenuSheet(
                 ProfileMenuItem(
                     icon = Icons.Default.Sync,
                     title = "Синхронизация с Obsidian Vault",
-                    subtitle = "План интеграции и экспорт заметок в хранилище",
-                    badgeColor = DuroJournalLavender,
+                    subtitle = if (isObsidianConfigured) "Подключено: $obsidianVaultName • Экспорт" else "Выбор папки Vault и экспорт заметок",
+                    badgeColor = if (isObsidianConfigured) DuroLime else DuroJournalLavender,
                     onClick = {
-                        Toast.makeText(context, "Obsidian Vault: экспорт доступен через кнопку «Obsidian MD» в деталях каждой мысли", Toast.LENGTH_LONG).show()
+                        onOpenObsidianSync()
                     }
                 )
 

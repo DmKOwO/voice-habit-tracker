@@ -47,6 +47,7 @@ class HomeViewModel @JvmOverloads constructor(
     private val settings = container.settings
     private val processVoiceUseCase = container.processVoiceUseCase
     private val applyVoiceActionsUseCase = container.applyVoiceActionsUseCase
+    val obsidianVaultManager = container.obsidianVaultManager
 
     private val logger = AppLogger.instance()
     val audioRecorder: AudioRecorderManager = container.audioRecorder
@@ -83,7 +84,10 @@ class HomeViewModel @JvmOverloads constructor(
                 showOnboarding = !settings.onboardingDone,
                 amoledTheme = settings.amoledTheme,
                 fontScale = settings.fontScale,
-                appLanguage = settings.appLanguage
+                appLanguage = settings.appLanguage,
+                isObsidianConfigured = obsidianVaultManager.isVaultConfigured(),
+                obsidianVaultName = obsidianVaultManager.getVaultDisplayName(),
+                obsidianAutoExport = settings.obsidianAutoExport
             )
         }
         viewModelScope.launch(dispatchers.io) {
@@ -527,13 +531,16 @@ class HomeViewModel @JvmOverloads constructor(
         val digest = action.digest ?: return
         val id = action.digestId ?: return
         val existing = digestRepository.byId(id) ?: return
-        digestRepository.upsert(
-            existing.withContent(digest).copy(
-                mode = action.mode,
-                modeConfidence = action.modeConfidence,
-                transcript = action.rawTranscript
-            )
+        val updated = existing.withContent(digest).copy(
+            mode = action.mode,
+            modeConfidence = action.modeConfidence,
+            transcript = action.rawTranscript
         )
+        digestRepository.upsert(updated)
+        if (settings.obsidianAutoExport && obsidianVaultManager.isVaultConfigured()) {
+            val audioPath = getAudioPath(updated.voiceLogId)
+            obsidianVaultManager.exportJournalEntry(updated, audioPath)
+        }
     }
 
     fun dismissReview() {
@@ -773,6 +780,105 @@ class HomeViewModel @JvmOverloads constructor(
                 )
             )
             showSnackbar("Задача создана из конспекта")
+        }
+    }
+
+    fun openObsidianSyncSheet() {
+        _state.update {
+            it.copy(
+                isObsidianSyncSheetOpen = true,
+                isObsidianConfigured = obsidianVaultManager.isVaultConfigured(),
+                obsidianVaultName = obsidianVaultManager.getVaultDisplayName(),
+                obsidianAutoExport = settings.obsidianAutoExport
+            )
+        }
+    }
+
+    fun closeObsidianSyncSheet() {
+        _state.update { it.copy(isObsidianSyncSheetOpen = false) }
+    }
+
+    fun setObsidianVaultUri(uri: android.net.Uri) {
+        val configured = obsidianVaultManager.saveVaultUri(uri)
+        val name = obsidianVaultManager.getVaultDisplayName()
+        _state.update {
+            it.copy(
+                isObsidianConfigured = configured,
+                obsidianVaultName = name
+            )
+        }
+        if (configured) {
+            showSnackbar("Obsidian Vault подключен: $name")
+        } else {
+            showSnackbar("Не удалось получить доступ к выбранной папке")
+        }
+    }
+
+    fun clearObsidianVault() {
+        obsidianVaultManager.clearVaultUri()
+        _state.update {
+            it.copy(
+                isObsidianConfigured = false,
+                obsidianVaultName = "Не подключено"
+            )
+        }
+        showSnackbar("Obsidian Vault отключен")
+    }
+
+    fun setObsidianAutoExport(enabled: Boolean) {
+        settings.obsidianAutoExport = enabled
+        _state.update { it.copy(obsidianAutoExport = enabled) }
+        showSnackbar(if (enabled) "Авто-экспорт в Obsidian включен" else "Авто-экспорт в Obsidian выключен")
+    }
+
+    fun exportRecordToObsidian(record: DigestRecord, onDone: ((Boolean, String) -> Unit)? = null) {
+        viewModelScope.launch(dispatchers.io) {
+            if (!obsidianVaultManager.isVaultConfigured()) {
+                withContext(dispatchers.main) {
+                    showSnackbar("Obsidian Vault не настроен. Подключите его в меню профиля.")
+                    onDone?.invoke(false, "Vault не настроен")
+                }
+                return@launch
+            }
+            val audioPath = getAudioPath(record.voiceLogId)
+            val result = obsidianVaultManager.exportJournalEntry(record, audioPath)
+            withContext(dispatchers.main) {
+                if (result.isSuccess) {
+                    val exported = result.getOrThrow()
+                    showSnackbar("Сохранено в Obsidian: ${exported.relativePath}")
+                    onDone?.invoke(true, exported.relativePath)
+                } else {
+                    val err = result.exceptionOrNull()?.localizedMessage ?: "Ошибка записи"
+                    showSnackbar("Ошибка экспорта: $err")
+                    onDone?.invoke(false, err)
+                }
+            }
+        }
+    }
+
+    fun exportAllToObsidian(onDone: ((Int, Int) -> Unit)? = null) {
+        viewModelScope.launch(dispatchers.io) {
+            if (!obsidianVaultManager.isVaultConfigured()) {
+                withContext(dispatchers.main) {
+                    showSnackbar("Obsidian Vault не настроен. Подключите его в меню профиля.")
+                }
+                return@launch
+            }
+            val currentRecords = _state.value.digests
+            val currentHabits = habitRepository.getAllHabitsList()
+            val currentTasks = taskRepository.getAllTasksList()
+
+            val batchResult = obsidianVaultManager.exportAll(
+                records = currentRecords,
+                habits = currentHabits,
+                tasks = currentTasks,
+                audioLocalPathResolver = { voiceLogId -> getAudioPath(voiceLogId) }
+            )
+
+            withContext(dispatchers.main) {
+                showSnackbar("Экспорт в ${batchResult.vaultName} завершён: ${batchResult.successCount} заметок сохранено")
+                onDone?.invoke(batchResult.successCount, batchResult.failureCount)
+            }
         }
     }
 

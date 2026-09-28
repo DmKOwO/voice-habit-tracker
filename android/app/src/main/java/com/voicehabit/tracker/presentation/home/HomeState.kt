@@ -158,7 +158,12 @@ data class HomeState(
     val focusTimerSeconds: Int = 25 * 60,
     val focusTimerTotalSeconds: Int = 25 * 60,
     val isFocusTimerRunning: Boolean = false,
-    val focusSessionCount: Int = 0
+    val focusSessionCount: Int = 0,
+    // Obsidian Vault Integration
+    val isObsidianConfigured: Boolean = false,
+    val obsidianVaultName: String = "Не подключено",
+    val obsidianAutoExport: Boolean = false,
+    val isObsidianSyncSheetOpen: Boolean = false
 )
 
 /** Сообщение + действие для Snackbar (например, отмена отметки). */

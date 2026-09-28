@@ -70,6 +70,9 @@ class AppContainer(
     val vosk by lazy { com.voicehabit.tracker.core.audio.VoskManager(appContext) }
     val health by lazy { com.voicehabit.tracker.core.health.HealthManager(appContext) }
     val backup by lazy { com.voicehabit.tracker.core.backup.BackupManager(appContext) }
+    val obsidianVaultManager by lazy {
+        com.voicehabit.tracker.core.obsidian.ObsidianVaultManager(appContext, settings)
+    }
 
     /** Транзакции Room для многошаговых записей. */
     val transactionRunner: TransactionRunner = object : TransactionRunner {

@@ -448,6 +448,13 @@ fun HomeScreen(
                 )
             }
 
+            if (state.isObsidianSyncSheetOpen) {
+                com.voicehabit.tracker.presentation.profile.ObsidianSyncSheet(
+                    viewModel = viewModel,
+                    onDismiss = { viewModel.closeObsidianSyncSheet() }
+                )
+            }
+
             if (state.isSettingsOpen) {
                 SettingsDialog(
                     settingsManager = viewModel.getSettingsManager(),

@@ -4,6 +4,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.voicehabit.tracker.core.obsidian.ObsidianMarkdownFormatter
 import com.voicehabit.tracker.domain.model.DigestRecord
 import com.voicehabit.tracker.presentation.home.HomeViewModel
 import com.voicehabit.tracker.presentation.theme.*
@@ -44,6 +49,7 @@ fun JournalDetailSheet(
 ) {
     val context = LocalContext.current
     val haptics = rememberDuroHaptics()
+    val state by viewModel.state.collectAsState()
     var isPinned by remember(digest.pinned) { mutableStateOf(digest.pinned) }
     var expandedTranscript by remember { mutableStateOf(false) }
     val addedSteps = remember { mutableStateListOf<String>() }
@@ -55,6 +61,20 @@ fun JournalDetailSheet(
         audioPath = viewModel.getAudioPath(digest.voiceLogId)
     }
 
+    val openVaultFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            haptics.confirm()
+            viewModel.setObsidianVaultUri(it)
+            viewModel.exportRecordToObsidian(digest) { success, path ->
+                if (success) {
+                    Toast.makeText(context, "Сохранено в Obsidian: $path", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     val isThisAudioPlaying = playbackState.isPlaying && playbackState.currentAudioPath == audioPath
 
     val formattedDate = remember(digest.createdAt) {
@@ -62,38 +82,10 @@ fun JournalDetailSheet(
         sdf.format(Date(if (digest.createdAt > 0) digest.createdAt else System.currentTimeMillis()))
     }
 
-    fun generateMarkdown(): String = buildString {
-        appendLine("# ${digest.title.ifBlank { "Запись в дневнике" }}")
-        appendLine()
-        appendLine("- **Дата:** $formattedDate")
-        if (digest.tone.isNotBlank()) appendLine("- **Настроение:** ${digest.tone}")
-        if (digest.speechSeconds > 0) appendLine("- **Длительность:** ${digest.speechSeconds / 60} мин ${digest.speechSeconds % 60} сек")
-        appendLine()
-        if (digest.gist.isNotBlank()) {
-            appendLine("## Суть (Core Insight)")
-            appendLine("> ${digest.gist}")
-            appendLine()
-        }
-        if (digest.keyPoints.isNotEmpty()) {
-            appendLine("## Ключевые тезисы")
-            digest.keyPoints.forEach { appendLine("- $it") }
-            appendLine()
-        }
-        if (digest.decisions.isNotEmpty()) {
-            appendLine("## Принятые решения")
-            digest.decisions.forEach { appendLine("- [x] $it") }
-            appendLine()
-        }
-        if (digest.nextSteps.isNotEmpty()) {
-            appendLine("## Следующие шаги")
-            digest.nextSteps.forEach { appendLine("- [ ] $it") }
-            appendLine()
-        }
-        if (digest.transcript.isNotBlank()) {
-            appendLine("## Полная расшифровка")
-            appendLine(digest.transcript)
-        }
-    }
+    fun generateMarkdown(): String = ObsidianMarkdownFormatter.formatJournal(
+        record = digest,
+        audioRelativePath = if (audioPath != null) "attachments/voice_${digest.createdAt}_${digest.id.takeLast(6)}.m4a" else null
+    )
 
     Scaffold(
         containerColor = DuroBackground,
@@ -141,24 +133,33 @@ fun JournalDetailSheet(
                         )
                     }
 
-                    // Export / Copy Button
+                    // Obsidian MD / Save / Copy Button
                     IconButton(
                         onClick = {
                             haptics.confirm()
                             val md = generateMarkdown()
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("Obsidian Journal Note", md))
-                            viewModel.showSnackbar("Скопировано в буфер обмена в формате Markdown (Obsidian)")
+                            if (state.isObsidianConfigured) {
+                                viewModel.exportRecordToObsidian(digest) { success, path ->
+                                    if (success) {
+                                        Toast.makeText(context, "Сохранено в Obsidian: $path", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Obsidian Journal Note", md))
+                                Toast.makeText(context, "Markdown скопирован. Выберите папку Vault для сохранения.", Toast.LENGTH_LONG).show()
+                                openVaultFolderLauncher.launch(null)
+                            }
                         },
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(DuroSurface)
+                            .background(if (state.isObsidianConfigured) DuroJournalLavender.copy(alpha = 0.2f) else DuroSurface)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Копировать Markdown",
-                            tint = DuroTextPrimary
+                            imageVector = if (state.isObsidianConfigured) Icons.Default.Save else Icons.Default.ContentCopy,
+                            contentDescription = "Obsidian MD",
+                            tint = if (state.isObsidianConfigured) DuroJournalLavender else DuroTextPrimary
                         )
                     }
 
@@ -587,13 +588,34 @@ fun JournalDetailSheet(
                 }
             }
 
-            // Obsidian Export Hint
+            // Obsidian Export Hint & Quick Action
             item {
                 Surface(
                     color = DuroSurfaceElevated,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
-                    modifier = Modifier.fillMaxWidth()
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (state.isObsidianConfigured) DuroJournalLavender.copy(alpha = 0.4f) else DuroBorder
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            haptics.confirm()
+                            if (state.isObsidianConfigured) {
+                                viewModel.exportRecordToObsidian(digest) { success, path ->
+                                    if (success) {
+                                        Toast.makeText(context, "Сохранено в Obsidian: $path", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                val md = generateMarkdown()
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Obsidian Journal Note", md))
+                                Toast.makeText(context, "Скопировано в буфер. Выберите Vault для прямого сохранения.", Toast.LENGTH_SHORT).show()
+                                openVaultFolderLauncher.launch(null)
+                            }
+                        }
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -603,13 +625,21 @@ fun JournalDetailSheet(
                         Text(text = "💎", fontSize = 18.sp)
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Синхронизация с Obsidian",
+                                text = if (state.isObsidianConfigured) {
+                                    "Obsidian Vault: ${state.obsidianVaultName} ✓"
+                                } else {
+                                    "Синхронизация с Obsidian Vault"
+                                },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DuroTextPrimary
+                                color = if (state.isObsidianConfigured) DuroJournalLavender else DuroTextPrimary
                             )
                             Text(
-                                text = "Нажмите иконку копирования вверху, чтобы вставить готовую заметку с метаданными в свой Vault",
+                                text = if (state.isObsidianConfigured) {
+                                    "Нажмите здесь для мгновенного сохранения заметки и аудио в Voice Journal/"
+                                } else {
+                                    "Нажмите, чтобы скопировать Markdown и выбрать папку хранилища"
+                                },
                                 fontSize = 11.sp,
                                 color = DuroTextSecondary
                             )
