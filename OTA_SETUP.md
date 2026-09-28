@@ -20,29 +20,16 @@ git remote add origin git@github.com:DmKOwO/voice-habit-tracker.git
 git push -u origin main
 ```
 
-## 3. Keystore — один раз (важно!)
+## 3. Keystore — постоянный ключ проекта (решено!)
 
-Все OTA-обновления должны быть подписаны **одним сертификатом**, иначе Android
-откажется ставить обновление поверх. Сгенерируйте ключ и сохраните файл в
-надёжном месте (потеря = переустановка у всех):
+Все обновления приложения и OTA-релизы должны быть подписаны **строго одним сертификатом**, иначе Android выдаёт ошибку `INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package signatures do not match newer version`.
 
-```bash
-keytool -genkeypair -v -keystore upload-keystore.jks -alias upload \
-  -keyalg RSA -keysize 2048 -validity 9125
-base64 -w0 upload-keystore.jks  # вывод — в секрет KEYSTORE_BASE64
-```
+В проект внедрён постоянный ключ:
+`android/app/keystore/release.jks` (alias: `dairy`, SHA-256: `0D:04:27:F2:2C:75:27:5E:79:31:7F:CE:34:20:76:2D:99:88:1A:96:B0:FC:77:DD:F8:5D:27:48:CC:7F:DE:9C`).
 
-В репозитории: **Settings → Secrets and variables → Actions → New secret**:
-
-| Secret              | Значение                              |
-|---------------------|---------------------------------------|
-| `KEYSTORE_BASE64`   | вывод `base64` выше                   |
-| `KEYSTORE_PASSWORD` | пароль от keystore                    |
-| `KEY_ALIAS`         | `upload`                              |
-| `KEY_PASSWORD`      | пароль ключа (часто совпадает)        |
-
-Без этих секретов тег-релиз осознанно падает с ошибкой, ручные сборки идут
-с debug-подписью.
+1. Ключ уже настроен в GitHub Secrets репозитория (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
+2. В `build.gradle.kts` настроена единая подпись `appSigning` как для release, так и для debug сборок.
+3. Любая локальная сборка (`assembleDebug`, `assembleRelease`) и сборка в GitHub Actions всегда используют этот ключ. Обновления теперь гарантированно встают без конфликтов подписей.
 
 ## 3.5. Ключи ИИ — чтобы работали из коробки (необязательно, но удобно)
 

@@ -87,22 +87,30 @@ android {
     }
 
     signingConfigs {
-        // OTA-подпись: CI кладёт keystore.jks из секрета KEYSTORE_BASE64.
-        // Без файла сборка молча падает на debug-подпись (для ручных сборок).
-        // Важно: на телефон ставьте APK из GitHub Release — только тогда
-        // сертификат совпадёт и следующие OTA встанут без переустановки.
-        create("ota") {
-            val ksFile = file("keystore.jks")
-            if (ksFile.exists()) {
-                storeFile = ksFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-                keyPassword = System.getenv("KEY_PASSWORD")
-            }
+        // Единая постоянная подпись для всех сборок (релизы, OTA и локальный debug).
+        // Это навсегда исключает ошибку «пакет конфликтует с существующим пакетом»,
+        // так как сертификат всех сборок гарантированно идентичен.
+        create("appSigning") {
+            val customKs = file("keystore.jks")
+            val defaultKs = file("keystore/release.jks")
+            val ksFile = if (customKs.exists()) customKs else defaultKs
+
+            storeFile = ksFile
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "dairy-release-key"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "dairy"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "dairy-release-key"
+
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
     buildTypes {
+        debug {
+            // Подписываем debug тем же постоянным ключом, чтобы локальные сборки (adb install)
+            // никогда не конфликтовали с релизными сборками из GitHub Releases / OTA.
+            signingConfig = signingConfigs.getByName("appSigning")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -110,11 +118,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = if (file("keystore.jks").exists()) {
-                signingConfigs.getByName("ota")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("appSigning")
         }
     }
     compileOptions {

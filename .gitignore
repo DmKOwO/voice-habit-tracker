@@ -1,6 +1,8 @@
-# Keystore для подписи релизов — НЕ коммитить! Хранится только в GitHub Secrets.
+# Keystore для подписи релизов: пользовательский keystore.jks игнорируется,
+# а постоянный ключ проекта сохраняется, чтобы подписи всегда совпадали.
 *.jks
 *.keystore
+!android/app/keystore/release.jks
 
 # Android / Gradle
 .gradle/

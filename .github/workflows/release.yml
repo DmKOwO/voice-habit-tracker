@@ -95,15 +95,14 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
             echo "present=true" >> "$GITHUB_OUTPUT"
             echo "Keystore из секрета готов."
+          elif [ -f "android/app/keystore/release.jks" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "Используется постоянный ключ проекта android/app/keystore/release.jks."
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Секрета KEYSTORE_BASE64 нет — сборка будет с debug-подписью."
+            echo "::error::Постоянный ключ проекта не найден!"
+            exit 1
           fi
-
-      - name: Check keystore status
-        if: steps.tag.outputs.value != '' && steps.keystore.outputs.present != 'true'
-        run: |
-          echo "::warning::Секрет KEYSTORE_BASE64 не найден — сборка будет подписана debug-ключом."
 
       - name: Build release APK
         working-directory: android
@@ -120,6 +119,7 @@ jobs:
           APK=$(ls android/app/build/outputs/apk/release/app-release*.apk | head -n 1)
           echo "APK: $APK"
           jarsigner -verify "$APK" | head -n 5
+          ${ANDROID_HOME}/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK"
 
       - name: Rename APK with version
         id: apk
