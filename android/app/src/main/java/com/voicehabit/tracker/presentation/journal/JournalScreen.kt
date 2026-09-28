@@ -353,7 +353,12 @@ fun JournalThoughtCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (record.pinned) {
-                        Text(text = "📌", fontSize = 12.sp)
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Закреплено",
+                            tint = DuroOrange,
+                            modifier = Modifier.size(13.dp)
+                        )
                     }
                     Text(
                         text = timeLabel,

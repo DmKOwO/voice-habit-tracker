@@ -15,7 +15,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -47,8 +52,6 @@ fun SwipeableTaskCard(
     onEdit: (() -> Unit)? = null,
     onStartFocus: (() -> Unit)? = null
 ) {
-    // A completed swipe commits the action, then springs back: the row itself
-    // becomes the gesture surface instead of adding another confirmation step.
     val haptics = rememberDuroHaptics()
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { target ->
@@ -73,33 +76,36 @@ fun SwipeableTaskCard(
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = false,
         backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                DuroLime.copy(alpha = 0.34f),
-                                DuroLime.copy(alpha = 0.08f),
-                                Color.Transparent
+            // Фон для свайпа показывается ТОЛЬКО во время активного жеста
+            if (swipeActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    DuroLime.copy(alpha = 0.34f),
+                                    DuroLime.copy(alpha = 0.08f),
+                                    Color.Transparent
+                                )
                             )
                         )
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Отметить выполненной",
+                        tint = DuroLime,
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = actionScale
+                                scaleY = actionScale
+                            }
+                            .size(20.dp)
                     )
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Отметить выполненной",
-                    tint = DuroLime,
-                    modifier = Modifier
-                        .graphicsLayer {
-                            scaleX = actionScale
-                            scaleY = actionScale
-                        }
-                        .size(20.dp)
-                )
+                }
             }
         }
     ) {
@@ -122,8 +128,9 @@ fun TaskCard(
     onEdit: (() -> Unit)? = null,
     onStartFocus: (() -> Unit)? = null
 ) {
+    // Непрозрачный фон предотвращает просвечивание фоновых элементов
     val containerColor by animateColorAsState(
-        targetValue = if (task.isCompleted) DuroLime.copy(alpha = 0.16f) else DuroSurface,
+        targetValue = if (task.isCompleted) Color(0xFF182218) else DuroSurface,
         animationSpec = DuroColorSpring,
         label = "taskContainerColor"
     )
@@ -146,11 +153,6 @@ fun TaskCard(
             .then(if (onEdit != null) Modifier.duroPressable(onClick = onEdit) else Modifier),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
-        // Заголовок занимает всю ширину строки (вес 1f, чекбокс и кнопка
-        // фиксированного размера не сжимаются), а бейджи живут отдельной
-        // переносимой строкой ниже. Иначе на узком экране/крупном шрифте
-        // правый ряд отжимал у заголовка почти всю ширину: текст переносился
-        // по буквам и визуально налезал на бейджи.
         Column(
             modifier = Modifier
                 .padding(horizontal = 14.dp, vertical = 12.dp)
@@ -159,14 +161,14 @@ fun TaskCard(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Checkbox(
                     checked = task.isCompleted,
                     onCheckedChange = { onToggle() },
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .graphicsLayer {
                             scaleX = checkScale
                             scaleY = checkScale
@@ -177,12 +179,21 @@ fun TaskCard(
                     )
                 )
 
+                if (task.pinned) {
+                    Icon(
+                        imageVector = Icons.Default.PushPin,
+                        contentDescription = "Закреплено",
+                        tint = DuroOrange,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+
                 Text(
-                    text = (if (task.pinned) "📌 " else "") + task.title,
+                    text = task.title,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (task.isCompleted) DuroTextMuted else DuroTextPrimary
+                        color = if (task.isCompleted) DuroTextSecondary.copy(alpha = 0.75f) else DuroTextPrimary
                     ),
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                     modifier = Modifier.weight(1f)
@@ -215,53 +226,110 @@ fun TaskCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // Дедлайн (векторная иконка вместо эмодзи)
                 task.dueDateIso?.let { due ->
                     val overdue = isOverdue(due) && !task.isCompleted
-                    Text(
-                        text = (if (overdue) "🔴 " else "⏰ ") + formatTaskDue(due),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = when {
-                                task.isCompleted -> DuroTextMuted
-                                overdue -> DuroRed
-                                else -> DuroOrange
-                            },
-                            fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal
+                    val tintColor = when {
+                        task.isCompleted -> DuroTextMuted
+                        overdue -> DuroRed
+                        else -> DuroOrange
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(tintColor.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = tintColor,
+                            modifier = Modifier.size(11.dp)
                         )
-                    )
+                        Text(
+                            text = formatTaskDue(due),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                color = tintColor,
+                                fontWeight = if (overdue) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
+                    }
                 }
-                Text(
-                    text = "📁 " + task.category,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = DuroTextSecondary
-                    )
-                )
+
+                // Категория (векторная иконка папки вместо эмодзи)
+                if (task.category.isNotBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DuroSurfaceElevated)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = DuroTextMuted,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = task.category,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                color = DuroTextSecondary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        )
+                    }
+                }
+
+                // Оценка времени (векторная иконка таймера вместо эмодзи)
                 task.estimatedMin?.let { minutes ->
-                    Text(
-                        text = "⏱ $minutes мин",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = DuroCyan
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DuroCyan.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = DuroCyan,
+                            modifier = Modifier.size(11.dp)
                         )
-                    )
+                        Text(
+                            text = "$minutes мин",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                color = DuroCyan,
+                                fontWeight = FontWeight.Medium
+                            )
+                        )
+                    }
                 }
+
                 TypeBadge(task = task)
                 PriorityBadge(task = task)
 
-                AnimatedVisibility(
-                    visible = task.isCompleted,
-                    enter = fadeIn() + expandHorizontally(),
-                    exit = fadeOut() + shrinkHorizontally()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Выполнено",
-                        tint = DuroLime,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
                 if (onStartFocus != null && !task.isCompleted) {
-                    IconButton(onClick = { onStartFocus() }, modifier = Modifier.size(28.dp)) {
-                        Text(text = "🧠", fontSize = 14.sp)
+                    IconButton(
+                        onClick = { onStartFocus() },
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DuroPurple.copy(alpha = 0.15f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Фокус",
+                            tint = DuroPurple,
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                 }
             }
@@ -337,18 +405,26 @@ private fun isOverdue(dueDateIso: String): Boolean {
     }
 }
 
+/** Форматирование дедлайна с аккуратными русскими месяцами (без артефактов вроде 'М09') */
 private fun formatTaskDue(dueDateIso: String): String {
+    val months = listOf("янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
     return try {
         val parsed = java.time.LocalDateTime.parse(dueDateIso.take(19))
-        val month = java.time.format.DateTimeFormatter.ofPattern("MMM", java.util.Locale.getDefault())
+        val monthName = months.getOrElse(parsed.monthValue - 1) { "" }
         val day = parsed.dayOfMonth
         val hasTime = dueDateIso.length >= 16 && !dueDateIso.endsWith("T00:00")
         if (hasTime) {
-            "%02d:%02d · %d %s".format(parsed.hour, parsed.minute, day, month.format(parsed).uppercase())
+            "%02d:%02d · %d %s".format(parsed.hour, parsed.minute, day, monthName)
         } else {
-            "%d %s".format(day, month.format(parsed).uppercase())
+            "%d %s".format(day, monthName)
         }
     } catch (e: Exception) {
-        dueDateIso.replace("T", " ").take(16)
+        try {
+            val parsedDate = java.time.LocalDate.parse(dueDateIso.take(10))
+            val monthName = months.getOrElse(parsedDate.monthValue - 1) { "" }
+            "%d %s".format(parsedDate.dayOfMonth, monthName)
+        } catch (e2: Exception) {
+            dueDateIso.replace("T", " ").take(16)
+        }
     }
 }

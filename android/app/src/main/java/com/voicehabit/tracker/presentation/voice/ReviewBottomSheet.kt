@@ -395,7 +395,7 @@ fun ReviewBottomSheet(
                                         )
                                         if (taskAction.dueDate != null) {
                                             Text(
-                                                text = "⏰ ${formatDue(taskAction.dueDate)}",
+                                                text = formatDue(taskAction.dueDate),
                                                 fontSize = 11.sp,
                                                 color = DuroOrange
                                             )
@@ -411,7 +411,7 @@ fun ReviewBottomSheet(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = if (taskAction.taskType == TaskType.LONG.name) "🔥 ДОЛГАЯ" else "⚡ БЫСТРАЯ",
+                                        text = if (taskAction.taskType == TaskType.LONG.name) "ДОЛГАЯ" else "БЫСТРАЯ",
                                         fontSize = 9.sp,
                                         color = if (taskAction.taskType == TaskType.LONG.name) DuroPurple else DuroCyan,
                                         fontWeight = FontWeight.Bold

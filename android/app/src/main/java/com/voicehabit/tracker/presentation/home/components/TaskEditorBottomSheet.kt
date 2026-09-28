@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -126,9 +127,11 @@ fun TaskEditorBottomSheet(
                         viewModel?.togglePinTask(task.copy(pinned = pinned))
                         pinned = !pinned
                     }) {
-                        Text(
-                            text = if (pinned) "📌" else "📍",
-                            fontSize = 18.sp
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = if (pinned) "Открепить" else "Закрепить",
+                            tint = if (pinned) DuroOrange else DuroTextMuted,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     IconButton(onClick = onDelete) {
