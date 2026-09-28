@@ -12,8 +12,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -376,9 +378,18 @@ fun HabitDetailBottomSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(
                         onClick = { viewModel.cloneHabit(habit) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("⧉ Дублировать", fontSize = 12.sp, color = DuroTextPrimary)
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = null,
+                            tint = AppTheme.colors.textPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Дублировать", fontSize = 12.sp, color = AppTheme.colors.textPrimary)
                     }
                     OutlinedButton(
                         onClick = {
@@ -386,9 +397,18 @@ fun HabitDetailBottomSheet(
                             viewModel.openScreen(com.voicehabit.tracker.presentation.home.AppScreen.FOCUS)
                             onDismiss()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("🧠 Фокус 25 мин", fontSize = 12.sp, color = DuroTextPrimary)
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = AppTheme.colors.textPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Фокус 25 мин", fontSize = 12.sp, color = AppTheme.colors.textPrimary)
                     }
                 }
 

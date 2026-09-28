@@ -293,20 +293,20 @@ fun TaskCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(DuroCyan.copy(alpha = 0.12f))
+                            .background(AppTheme.colors.accent.copy(alpha = 0.12f))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Timer,
                             contentDescription = null,
-                            tint = DuroCyan,
+                            tint = AppTheme.colors.accent,
                             modifier = Modifier.size(11.dp)
                         )
                         Text(
                             text = "$minutes мин",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 10.sp,
-                                color = DuroCyan,
+                                color = AppTheme.colors.accent,
                                 fontWeight = FontWeight.Medium
                             )
                         )
@@ -322,12 +322,12 @@ fun TaskCard(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(DuroPurple.copy(alpha = 0.15f))
+                            .background(AppTheme.colors.accent.copy(alpha = 0.15f))
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Фокус",
-                            tint = DuroPurple,
+                            tint = AppTheme.colors.accent,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -340,7 +340,7 @@ fun TaskCard(
 @Composable
 private fun TypeBadge(task: Task) {
     val isLong = task.type.isLong
-    val tint = if (isLong) DuroPurple else DuroCyan
+    val tint = if (isLong) AppTheme.colors.accentSecondary else AppTheme.colors.accent
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),

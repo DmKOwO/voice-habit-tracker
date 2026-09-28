@@ -387,11 +387,11 @@ fun JournalDetailSheet(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.Top
                         ) {
-                            Text(
-                                text = "◆",
-                                fontSize = 12.sp,
-                                color = AppTheme.colors.accent,
-                                modifier = Modifier.padding(top = 2.dp)
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 7.dp)
+                                    .size(6.dp)
+                                    .background(AppTheme.colors.accent, CircleShape)
                             )
                             Text(
                                 text = point,
@@ -428,11 +428,13 @@ fun JournalDetailSheet(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.Top
                         ) {
-                            Text(
-                                text = "✓",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppTheme.colors.accent
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = AppTheme.colors.accent,
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .size(16.dp)
                             )
                             Text(
                                 text = decision,
@@ -490,11 +492,11 @@ fun JournalDetailSheet(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = if (isAdded) "✓" else "→",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isAdded) AppTheme.colors.accent else AppTheme.colors.textMuted
+                                Icon(
+                                    imageVector = if (isAdded) Icons.Default.Check else Icons.Default.ArrowForward,
+                                    contentDescription = null,
+                                    tint = if (isAdded) AppTheme.colors.accent else AppTheme.colors.textMuted,
+                                    modifier = Modifier.size(14.dp)
                                 )
                                 Text(
                                     text = step,
@@ -519,7 +521,7 @@ fun JournalDetailSheet(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = if (isAdded) "В списке ✓" else "+ В задачи",
+                                    text = if (isAdded) "В списке" else "+ В задачи",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -631,7 +633,7 @@ fun JournalDetailSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (state.isObsidianConfigured) {
-                                    "Obsidian Vault: ${state.obsidianVaultName} ✓"
+                                    "Obsidian Vault: ${state.obsidianVaultName}"
                                 } else {
                                     "Синхронизация с Obsidian Vault"
                                 },

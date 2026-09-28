@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -109,7 +110,12 @@ private fun EmptyDigests(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "◎", fontSize = 56.sp, color = DuroPurple)
+        Icon(
+            imageVector = Icons.Default.GraphicEq,
+            contentDescription = null,
+            tint = AppTheme.colors.accent,
+            modifier = Modifier.size(56.dp)
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Здесь появятся выжимки разговоров",
@@ -146,8 +152,6 @@ private fun DigestCard(digest: DigestRecord, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = digest.mode.emoji, fontSize = 13.sp, color = accent)
-                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = digest.mode.label,
                     fontSize = 10.sp,
@@ -157,7 +161,7 @@ private fun DigestCard(digest: DigestRecord, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp))
                 if (digest.durationLabel.isNotBlank()) {
                     Text(
-                        text = "🎙 ${digest.durationLabel}",
+                        text = digest.durationLabel,
                         fontSize = 10.sp,
                         color = DuroTextMuted
                     )
@@ -195,19 +199,19 @@ private fun DigestCard(digest: DigestRecord, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (digest.decisions.isNotEmpty()) {
-                    MetaPill("✓ ${digest.decisions.size}", DuroLime)
+                    MetaPill("Решения: ${digest.decisions.size}", DairySuccess)
                 }
                 if (digest.nextSteps.isNotEmpty()) {
-                    MetaPill("→ ${digest.nextSteps.size}", DuroCyan)
+                    MetaPill("Дальше: ${digest.nextSteps.size}", AppTheme.colors.accent)
                 }
                 if (digest.openQuestions.isNotEmpty()) {
-                    MetaPill("? ${digest.openQuestions.size}", DuroAmber)
+                    MetaPill("Вопросы: ${digest.openQuestions.size}", DairyWarning)
                 }
                 if (digest.people.isNotEmpty()) {
-                    MetaPill("☺ ${digest.people.size}", DuroPurple)
+                    MetaPill("Люди: ${digest.people.size}", AppTheme.colors.accentSecondary)
                 }
                 if (digest.tone.isNotBlank()) {
-                    MetaPill(digest.tone, DuroPink)
+                    MetaPill(digest.tone, AppTheme.colors.accent)
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -318,15 +322,15 @@ private fun DigestReader(
                 val items = digest.itemsOf(section)
                 if (items.isNotEmpty()) {
                     val sectionAccent = when (section) {
-                        DigestSection.DECISIONS -> DuroLime
-                        DigestSection.NEXT_STEPS -> DuroCyan
-                        DigestSection.OPEN_QUESTIONS -> DuroAmber
-                        DigestSection.KEY_POINTS -> DuroPurple
-                        DigestSection.PEOPLE -> DuroPink
+                        DigestSection.DECISIONS -> DairySuccess
+                        DigestSection.NEXT_STEPS -> AppTheme.colors.accent
+                        DigestSection.OPEN_QUESTIONS -> DairyWarning
+                        DigestSection.KEY_POINTS -> AppTheme.colors.accentSecondary
+                        DigestSection.PEOPLE -> AppTheme.colors.accent
                         DigestSection.NUMBERS -> DuroTextSecondary
                     }
                     Text(
-                        text = "${section.emoji} ${section.title}",
+                        text = section.title,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = sectionAccent,
@@ -361,7 +365,7 @@ private fun DigestReader(
                                         text = "→ задача",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = DuroCyan,
+                                        color = AppTheme.colors.accent,
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
                                             .clickable { onStepToTask(item) }

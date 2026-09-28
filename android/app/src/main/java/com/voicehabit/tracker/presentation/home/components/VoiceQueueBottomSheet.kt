@@ -151,13 +151,13 @@ fun VoiceQueueBottomSheet(
                                     // было недостижимо: статус в БД всегда писался PROCESSED.
                                     val (statusLabel, statusColor) = when (log.status) {
                                         VoiceUploadWorker.VOICE_STATUS_APPLIED ->
-                                            "✓ Применено" to DuroLime
+                                            "Применено" to DairySuccess
                                         VoiceUploadWorker.VOICE_STATUS_PENDING_UPLOAD ->
-                                            "⏳ В очереди" to DuroAmber
+                                            "В очереди" to DairyWarning
                                         VoiceUploadWorker.VOICE_STATUS_FAILED ->
-                                            "⚠ Ошибка" to DuroRed
+                                            "Ошибка" to DairyDanger
                                         else ->
-                                            "• Разобрано" to DuroCyan
+                                            "Разобрано" to AppTheme.colors.accent
                                     }
                                     Surface(
                                         color = statusColor.copy(alpha = 0.15f),

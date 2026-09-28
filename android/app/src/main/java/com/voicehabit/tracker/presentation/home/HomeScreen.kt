@@ -15,8 +15,11 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
@@ -259,7 +262,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.PersonOutline,
                                         contentDescription = "Профиль и система",
-                                        tint = if (!state.hasApiKeysConfigured) DairyWarning else AppTheme.colors.textPrimary,
+                                        tint = AppTheme.colors.textPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -362,24 +365,36 @@ fun HomeScreen(
                         }
                     }
 
-                    // Плавный переход между табами без конфликтов жестов и свайпов
-                    AnimatedContent(
-                        targetState = state.selectedMainTab,
-                        transitionSpec = {
-                            if (targetState.ordinal > initialState.ordinal) {
-                                (slideInHorizontally { width -> width / 5 } + fadeIn()).togetherWith(
-                                    slideOutHorizontally { width -> -width / 5 } + fadeOut()
-                                )
-                            } else {
-                                (slideInHorizontally { width -> -width / 5 } + fadeIn()).togetherWith(
-                                    slideOutHorizontally { width -> width / 5 } + fadeOut()
-                                )
+                    // Нативный горизонтальный свайп между 3 пространствами (Ритм, Дневник, Обзор)
+                    val pagerState = rememberPagerState(initialPage = state.selectedMainTab.ordinal) { 3 }
+
+                    // Синхронизация при тапе по табам нижней навигации
+                    LaunchedEffect(state.selectedMainTab) {
+                        if (pagerState.currentPage != state.selectedMainTab.ordinal) {
+                            pagerState.animateScrollToPage(state.selectedMainTab.ordinal)
+                        }
+                    }
+
+                    // Синхронизация при свайпе жестом пальца (когда страница зафиксировалась)
+                    LaunchedEffect(pagerState) {
+                        snapshotFlow { pagerState.settledPage }
+                            .distinctUntilChanged()
+                            .collect { page ->
+                                val targetTab = MainTab.entries.getOrNull(page) ?: MainTab.RHYTHM
+                                if (state.selectedMainTab != targetTab) {
+                                    viewModel.setSelectedMainTab(targetTab)
+                                }
                             }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        label = "MainTabTransition"
-                    ) { tab ->
-                        when (tab) {
+                    }
+
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        key = { page -> MainTab.entries.getOrNull(page)?.name ?: page }
+                    ) { page ->
+                        when (MainTab.entries.getOrNull(page) ?: MainTab.RHYTHM) {
                             MainTab.RHYTHM -> RhythmView(viewModel = viewModel)
                             MainTab.JOURNAL -> JournalScreen(viewModel = viewModel)
                             MainTab.OVERVIEW -> OverviewScreen(viewModel = viewModel)
@@ -508,7 +523,7 @@ fun HomeScreen(
                         haptics.confirm()
                         viewModel.toggleHabit(habit)
                         viewModel.showSnackbar(
-                            if (!habit.isCompletedToday) "«${habit.title}» выполнено! 🔥" else "«${habit.title}» отменено"
+                            if (!habit.isCompletedToday) "«${habit.title}» выполнено!" else "«${habit.title}» отменено"
                         )
                     },
                     onDelete = {
@@ -728,9 +743,9 @@ fun RhythmView(
                         items(categories) { cat ->
                             val selected = state.categoryFilter == cat
                             Surface(
-                                color = if (selected) DuroCyan.copy(alpha = 0.2f) else DuroSurface,
+                                color = if (selected) AppTheme.colors.accent.copy(alpha = 0.15f) else AppTheme.colors.surface,
                                 shape = RoundedCornerShape(10.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) DuroCyan else DuroBorder),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) AppTheme.colors.accent else AppTheme.colors.border),
                                 modifier = Modifier.clickable {
                                     haptics.select()
                                     viewModel.setCategoryFilter(if (selected) null else cat)
@@ -739,7 +754,7 @@ fun RhythmView(
                                 Text(
                                     text = cat,
                                     fontSize = 11.sp,
-                                    color = if (selected) DuroCyan else DuroTextSecondary,
+                                    color = if (selected) AppTheme.colors.accent else AppTheme.colors.textSecondary,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                 )
                             }
@@ -779,7 +794,7 @@ fun RhythmView(
                             text = "ОТКРЫТЫЕ ЗАДАЧИ · ${displayTasks.size}".uppercase(),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroCyan,
+                            color = AppTheme.colors.accent,
                             letterSpacing = 1.sp,
                             modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
                         )
@@ -851,7 +866,7 @@ fun RhythmView(
                             text = "ОТКРЫТЫЕ ЗАДАЧИ · ${displayTasks.size}".uppercase(),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroCyan,
+                            color = AppTheme.colors.accent,
                             letterSpacing = 1.sp,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )

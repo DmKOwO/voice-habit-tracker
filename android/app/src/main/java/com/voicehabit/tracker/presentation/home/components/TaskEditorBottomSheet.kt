@@ -12,8 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -112,7 +114,7 @@ fun TaskEditorBottomSheet(
                         text = "РЕДАКТИРОВАНИЕ ЗАДАЧИ",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DuroCyan,
+                        color = AppTheme.colors.accent,
                         letterSpacing = 1.sp
                     )
                     Text(
@@ -194,9 +196,9 @@ fun TaskEditorBottomSheet(
                             } catch (e: Exception) {
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = DuroCyan)
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent, contentColor = AppTheme.colors.surface)
                     ) {
-                        Text("↗")
+                        Icon(Icons.Default.OpenInNew, contentDescription = "Открыть ссылку", modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -210,7 +212,7 @@ fun TaskEditorBottomSheet(
                         Checkbox(
                             checked = sub.isDone,
                             onCheckedChange = { viewModel?.toggleSubtask(task.id, sub) },
-                            colors = CheckboxDefaults.colors(checkedColor = DuroLime)
+                            colors = CheckboxDefaults.colors(checkedColor = DairySuccess)
                         )
                         Text(
                             text = sub.title,
@@ -222,7 +224,7 @@ fun TaskEditorBottomSheet(
                             onClick = { viewModel?.deleteSubtask(task.id, sub.id) },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Text(text = "✕", fontSize = 12.sp, color = DuroTextSecondary)
+                            Icon(Icons.Default.Close, contentDescription = "Удалить", tint = DuroTextSecondary, modifier = Modifier.size(14.dp))
                         }
                     }
                 }
@@ -242,7 +244,7 @@ fun TaskEditorBottomSheet(
                             viewModel?.addSubtask(task.id, newSubtask)
                             newSubtask = ""
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = DuroOrange),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent, contentColor = AppTheme.colors.surface),
                         enabled = newSubtask.isNotBlank()
                     ) {
                         Text("+")
@@ -255,7 +257,7 @@ fun TaskEditorBottomSheet(
                     TypeChoiceCard(
                         modifier = Modifier.weight(1f),
                         selected = type == TaskType.QUICK,
-                        accent = DuroCyan,
+                        accent = AppTheme.colors.accent,
                         icon = Icons.Default.Bolt,
                         title = "Быстрая",
                         description = "Разовое действие: закрыл и забыл"
@@ -265,7 +267,7 @@ fun TaskEditorBottomSheet(
                     TypeChoiceCard(
                         modifier = Modifier.weight(1f),
                         selected = type == TaskType.LONG,
-                        accent = DuroPurple,
+                        accent = AppTheme.colors.accentSecondary,
                         icon = Icons.Default.LocalFireDepartment,
                         title = "Долгая",
                         description = "Цель как привычка: остаётся в списке"
@@ -303,7 +305,7 @@ fun TaskEditorBottomSheet(
                         EditorChip(
                             label = option.title,
                             selected = recurrence == option,
-                            accent = DuroPurple,
+                            accent = AppTheme.colors.accentSecondary,
                             modifier = Modifier.weight(1f),
                             onClick = { recurrence = option }
                         )
@@ -335,7 +337,7 @@ fun TaskEditorBottomSheet(
                         EditorChip(
                             label = label,
                             selected = estimatedMin == option,
-                            accent = DuroCyan,
+                            accent = AppTheme.colors.accent,
                             modifier = Modifier.weight(1f),
                             onClick = { estimatedMin = option }
                         )
@@ -369,10 +371,10 @@ fun TaskEditorBottomSheet(
                                 taskId = task.id
                             )
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = DuroPurple),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent, contentColor = AppTheme.colors.surface),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("💾 Сохранить и старт фокус ($estimatedMin мин)")
+                        Text("Сохранить и старт фокус ($estimatedMin мин)")
                     }
                 }
             }

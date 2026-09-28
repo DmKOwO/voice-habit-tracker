@@ -9,20 +9,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import com.voicehabit.tracker.domain.model.CaptureDigest
 import com.voicehabit.tracker.domain.model.IntentMode
 import com.voicehabit.tracker.domain.model.TaskType
@@ -124,15 +123,20 @@ fun ReviewBottomSheet(
                     },
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Text(text = "🔊", fontSize = 18.sp)
+                    Icon(
+                        imageVector = Icons.Default.VolumeUp,
+                        contentDescription = "Прослушать",
+                        tint = AppTheme.colors.accent,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
             if (action.daySummaryRequested) {
                 Text(
-                    text = "📋 Сводка дня будет показана и озвучена после применения",
+                    text = "Сводка дня будет показана и озвучена после применения",
                     fontSize = 12.sp,
-                    color = DuroCyan,
+                    color = AppTheme.colors.accent,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
@@ -163,7 +167,7 @@ fun ReviewBottomSheet(
                                     text = "КАК Я ЭТО ПОНЯЛ",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = DuroPurple,
+                                    color = AppTheme.colors.accentSecondary,
                                     letterSpacing = 1.sp
                                 )
                                 action.insights.take(MAX_VISIBLE_INSIGHTS).forEach { insight ->
@@ -304,7 +308,7 @@ fun ReviewBottomSheet(
                     deleteState.forEach { deleteAction ->
                         item(key = "del_" + deleteAction.taskTitle) {
                             CommandRow(
-                                emoji = "🗑",
+                                icon = Icons.Default.Delete,
                                 title = deleteAction.taskTitle,
                                 subtitle = "В корзину (восстановимо)",
                                 checked = deleteAction.isSelected,
@@ -319,7 +323,7 @@ fun ReviewBottomSheet(
                     rescheduleState.forEach { reschedule ->
                         item(key = "resch_" + reschedule.taskTitle) {
                             CommandRow(
-                                emoji = "📅",
+                                icon = Icons.Default.Event,
                                 title = reschedule.taskTitle,
                                 subtitle = "Перенести" + (reschedule.newDueDate?.let { " до $it" } ?: ""),
                                 checked = reschedule.isSelected,
@@ -334,7 +338,7 @@ fun ReviewBottomSheet(
                     focusState?.let { focus ->
                         item(key = "focus") {
                             CommandRow(
-                                emoji = "🧠",
+                                icon = Icons.Default.Timer,
                                 title = "Фокус ${focus.minutes} мин",
                                 subtitle = focus.label,
                                 checked = focus.isSelected,
@@ -352,7 +356,7 @@ fun ReviewBottomSheet(
                             text = "НОВЫЕ ЗАДАЧИ",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroCyan,
+                            color = AppTheme.colors.accent,
                             letterSpacing = 1.sp
                         )
                     }
@@ -413,7 +417,7 @@ fun ReviewBottomSheet(
                                     Text(
                                         text = if (taskAction.taskType == TaskType.LONG.name) "ДОЛГАЯ" else "БЫСТРАЯ",
                                         fontSize = 9.sp,
-                                        color = if (taskAction.taskType == TaskType.LONG.name) DuroPurple else DuroCyan,
+                                        color = if (taskAction.taskType == TaskType.LONG.name) AppTheme.colors.accentSecondary else AppTheme.colors.accent,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -496,13 +500,13 @@ private fun formatDue(iso: String): String =
     }.getOrDefault(iso)
 
 /** Секции конспекта, которые можно выбросить в шторке. */
-enum class DigestSection(val title: String, val emoji: String) {
-    KEY_POINTS("Ключевые мысли", "◆"),
-    DECISIONS("Решения", "✓"),
-    OPEN_QUESTIONS("Открытые вопросы", "?"),
-    NEXT_STEPS("Что дальше", "→"),
-    PEOPLE("Люди", "☺"),
-    NUMBERS("Цифры", "#")
+enum class DigestSection(val title: String) {
+    KEY_POINTS("Ключевые мысли"),
+    DECISIONS("Решения"),
+    OPEN_QUESTIONS("Открытые вопросы"),
+    NEXT_STEPS("Что дальше"),
+    PEOPLE("Люди"),
+    NUMBERS("Цифры")
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -520,11 +524,11 @@ private fun ModeBadge(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = action.mode.emoji,
-                    fontSize = 16.sp,
-                    color = accent,
-                    fontWeight = FontWeight.Bold
+                Icon(
+                    imageVector = modeIcon(action.mode),
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -548,13 +552,11 @@ private fun ModeBadge(
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Я ошибся?",
+                text = "Изменить режим:",
                 fontSize = 10.sp,
                 color = DuroTextMuted
             )
             Spacer(modifier = Modifier.height(6.dp))
-            // Ровно четыре варианта: столько же, сколько режимов. Чипы в одну строку с
-            // переносом — иначе на узком экране при шрифте 1.3x они съедали шторку.
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -573,14 +575,25 @@ private fun ModeBadge(
                                 RoundedCornerShape(20.dp)
                             )
                             .clickable { if (!selected) onOverride(mode) }
-                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text(
-                            text = "${mode.emoji} ${mode.label}",
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) DuroBackground else DuroTextSecondary
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = modeIcon(mode),
+                                contentDescription = null,
+                                tint = if (selected) DuroBackground else DuroTextSecondary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = mode.label,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) DuroBackground else DuroTextSecondary
+                            )
+                        }
                     }
                 }
             }
@@ -636,7 +649,7 @@ private fun DigestPreview(
     Surface(
         color = DuroSurfaceElevated,
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DuroCyan.copy(alpha = 0.4f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -645,7 +658,7 @@ private fun DigestPreview(
                     text = "ВЫЖИМКА РАЗГОВОРА",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = DuroCyan,
+                    color = AppTheme.colors.accent,
                     letterSpacing = 1.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -679,11 +692,11 @@ private fun DigestPreview(
                         color = DuroTextPrimary
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DuroCyan,
+                        focusedBorderColor = AppTheme.colors.accent,
                         unfocusedBorderColor = DuroBorder,
-                        focusedLabelColor = DuroCyan,
+                        focusedLabelColor = AppTheme.colors.accent,
                         unfocusedLabelColor = DuroTextMuted,
-                        cursorColor = DuroCyan
+                        cursorColor = AppTheme.colors.accent
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -710,7 +723,12 @@ private fun DigestPreview(
                         onClick = { onSpeak(digest.gist) },
                         modifier = Modifier.size(30.dp)
                     ) {
-                        Text(text = "🔊", fontSize = 14.sp)
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = "Прослушать",
+                            tint = DuroTextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
@@ -721,10 +739,10 @@ private fun DigestPreview(
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "${section.emoji} ${section.title}",
+                            text = section.title,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroAmber,
+                            color = AppTheme.colors.accent,
                             letterSpacing = 0.5.sp,
                             modifier = Modifier.weight(1f)
                         )
@@ -759,7 +777,7 @@ private fun DigestPreview(
                 Text(
                     text = "Тон: ${digest.tone}",
                     fontSize = 11.sp,
-                    color = DuroPurple,
+                    color = AppTheme.colors.accentSecondary,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -791,11 +809,19 @@ private fun com.voicehabit.tracker.domain.model.CaptureDigest.without(
 }
 
 internal fun modeAccent(mode: IntentMode): Color = when (mode) {
-    IntentMode.LOG -> DuroCyan
-    IntentMode.JOURNAL -> DuroJournalLavender
-    IntentMode.DICTATE -> DuroPurple
-    IntentMode.MIXED -> DuroAmber
-    IntentMode.QUERY -> DuroLime
+    IntentMode.LOG -> DairyAccentWarm
+    IntentMode.JOURNAL -> MidnightAccent
+    IntentMode.DICTATE -> EspressoAccent
+    IntentMode.MIXED -> MarsRustAccent
+    IntentMode.QUERY -> DairySuccess
+}
+
+internal fun modeIcon(mode: IntentMode): ImageVector = when (mode) {
+    IntentMode.LOG -> Icons.Default.TaskAlt
+    IntentMode.JOURNAL -> Icons.Default.MenuBook
+    IntentMode.DICTATE -> Icons.Default.GraphicEq
+    IntentMode.MIXED -> Icons.Default.AutoAwesome
+    IntentMode.QUERY -> Icons.Default.HelpOutline
 }
 
 @Composable
@@ -825,7 +851,12 @@ private fun JournalReviewCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(text = "📖", fontSize = 16.sp)
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(id = com.voicehabit.tracker.R.drawable.ic_journal_night),
+                        contentDescription = null,
+                        tint = DuroJournalLavender,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Text(
                         text = "ЗАПИСЬ В ДНЕВНИК",
                         fontSize = 11.sp,
@@ -919,7 +950,12 @@ private fun JournalReviewCard(
                             onClick = { onSpeak(digest.gist) },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Text(text = "🔊", fontSize = 14.sp)
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Прослушать",
+                                tint = AppTheme.colors.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
@@ -968,7 +1004,7 @@ private fun JournalReviewCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (expandedTranscript) "▼ Скрыть полную расшифровку" else "▶ Полная расшифровка (Транскрипт)",
+                        text = if (expandedTranscript) "Скрыть полную расшифровку" else "Полная расшифровка (Транскрипт)",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = DuroTextMuted
@@ -1004,7 +1040,7 @@ private fun JournalReviewCard(
 
 @Composable
 private fun CommandRow(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -1025,11 +1061,16 @@ private fun CommandRow(
                 checked = checked,
                 onCheckedChange = onChecked,
                 colors = CheckboxDefaults.colors(
-                    checkedColor = DuroOrange,
+                    checkedColor = AppTheme.colors.accent,
                     uncheckedColor = DuroTextMuted
                 )
             )
-            Text(text = emoji, fontSize = 18.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = AppTheme.colors.accent,
+                modifier = Modifier.size(20.dp)
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,

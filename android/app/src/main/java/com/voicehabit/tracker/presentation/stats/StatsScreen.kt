@@ -1,6 +1,7 @@
 package com.voicehabit.tracker.presentation.stats
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -53,22 +54,28 @@ fun StatsScreen(viewModel: HomeViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // Настроение дня (G26)
-        Text(text = "Настроение сегодня", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DuroTextSecondary)
+        Text(text = "Настроение сегодня", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val faces = listOf("😞" to 1, "😐" to 2, "🙂" to 3, "😄" to 4, "🤩" to 5)
-            faces.forEach { (face, value) ->
+            val ratings = listOf("1" to 1, "2" to 2, "3" to 3, "4" to 4, "5" to 5)
+            ratings.forEach { (label, value) ->
                 val selected = state.moodToday == value
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (selected) DuroOrange.copy(alpha = 0.25f) else DuroSurface)
+                        .background(if (selected) AppTheme.colors.accent else AppTheme.colors.surface)
+                        .border(1.dp, if (selected) AppTheme.colors.accent else AppTheme.colors.border, RoundedCornerShape(12.dp))
                         .clickable { viewModel.setMood(value) }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = face, fontSize = 24.sp)
+                    Text(
+                        text = label,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selected) AppTheme.colors.onAccent else AppTheme.colors.textPrimary
+                    )
                 }
             }
         }
@@ -172,9 +179,11 @@ fun StatsScreen(viewModel: HomeViewModel) {
                 )
                 context.startActivity(share)
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text("📤 Поделиться статистикой", color = DuroTextPrimary)
+            Text("Поделиться статистикой", color = AppTheme.colors.textPrimary)
         }
         Spacer(modifier = Modifier.height(120.dp))
     }
@@ -201,12 +210,13 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(DuroSurface)
+            .background(AppTheme.colors.surface)
+            .border(1.dp, AppTheme.colors.border, RoundedCornerShape(14.dp))
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = DuroOrange)
-        Text(text = label, fontSize = 11.sp, color = DuroTextSecondary)
+        Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = AppTheme.colors.accent)
+        Text(text = label, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
     }
 }
 
@@ -229,9 +239,9 @@ private fun WeekdayBars(stats: AppStats) {
                         .fillMaxWidth()
                         .height((20 + 100 * count / max).dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(if (index == stats.bestWeekday) DuroOrange else DuroCyan.copy(alpha = 0.5f))
+                        .background(if (index == stats.bestWeekday) AppTheme.colors.accent else AppTheme.colors.surfaceElevated)
                 )
-                Text(text = days[index], fontSize = 10.sp, color = DuroTextSecondary)
+                Text(text = days[index], fontSize = 10.sp, color = AppTheme.colors.textSecondary)
             }
         }
     }
@@ -260,7 +270,7 @@ private fun FocusWeekBars(sessions: List<com.voicehabit.tracker.domain.model.Foc
                         .fillMaxWidth()
                         .height((16 + 80 * minutes / max).dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(DuroPurple.copy(alpha = if (minutes > 0) 0.9f else 0.25f))
+                        .background(AppTheme.colors.accentSecondary.copy(alpha = if (minutes > 0) 0.9f else 0.25f))
                 )
                 Text(
                     text = if (minutes > 0) "$minutes" else "",

@@ -57,8 +57,8 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
-git add "$VERSION_FILE"
-git commit -m "Bump version to $TAG" || true
+git add -A
+git commit -m "chore(release): bump version to $TAG and include latest updates" || true
 git tag "$TAG"
 
 if git remote | grep -q 'origin'; then

@@ -51,74 +51,93 @@ fun BackupScreen(viewModel: HomeViewModel) {
         ScreenHeader(title = "Бэкап", subtitle = "Ваши данные — только ваши") { viewModel.closeScreen() }
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Экспорт", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DuroTextSecondary)
+        Text(text = "Экспорт", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         Button(
             onClick = { viewModel.doBackup() },
-            colors = ButtonDefaults.buttonColors(containerColor = DuroOrange),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AppTheme.colors.accent,
+                contentColor = AppTheme.colors.onAccent
+            ),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("💾 Создать бэкап JSON")
+            Text("Создать бэкап JSON", fontWeight = FontWeight.Bold)
         }
         if (state.lastBackupName != null) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Последний: ${state.lastBackupName}", fontSize = 12.sp, color = DuroLime)
+            Text(text = "Последний: ${state.lastBackupName}", fontSize = 12.sp, color = DairySuccess)
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = { viewModel.shareLastBackup(context) },
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("📤 Поделиться файлом", color = DuroTextPrimary)
+                Text("Поделиться файлом", color = AppTheme.colors.textPrimary)
             }
         }
         Text(
             text = "Еженедельный автобэкап включён и выполняется в фоне.",
             fontSize = 11.sp,
-            color = DuroTextSecondary,
+            color = AppTheme.colors.textSecondary,
             modifier = Modifier.padding(top = 8.dp)
         )
 
         Spacer(modifier = Modifier.height(20.dp))
-        Text(text = "Импорт", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DuroTextSecondary)
+        Text(text = "Импорт", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(
             onClick = { pickFile.launch("application/json") },
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("📥 Выбрать файл бэкапа", color = DuroTextPrimary)
+            Text("Выбрать файл бэкапа", color = AppTheme.colors.textPrimary)
         }
 
         state.importPreview?.let { preview ->
             Spacer(modifier = Modifier.height(12.dp))
-            Surface(color = DuroSurface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                color = AppTheme.colors.surface,
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
                         text = "Найдено строк: ${preview.tables.values.sum()}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DuroTextPrimary
+                        color = AppTheme.colors.textPrimary
                     )
                     preview.tables.forEach { (table, count) ->
-                        Text(text = "• $table: $count", fontSize = 12.sp, color = DuroTextSecondary)
+                        Text(text = "• $table: $count", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                     }
                     preview.warnings.forEach { warning ->
-                        Text(text = "⚠ $warning", fontSize = 12.sp, color = DuroAmber)
+                        Text(text = warning, fontSize = 12.sp, color = DairyWarning)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = { viewModel.doImport(pickedText) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DuroLime),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DairySuccess,
+                                contentColor = androidx.compose.ui.graphics.Color.Black
+                            ),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.weight(1f),
                             enabled = pickedText.isNotBlank()
                         ) {
-                            Text("Импортировать", color = androidx.compose.ui.graphics.Color.Black)
+                            Text("Импортировать")
                         }
                         OutlinedButton(
                             onClick = { viewModel.clearImportPreview() },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Отмена", color = DuroTextPrimary)
+                            Text("Отмена", color = AppTheme.colors.textPrimary)
                         }
                     }
                 }

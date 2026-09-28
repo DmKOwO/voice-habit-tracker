@@ -69,7 +69,7 @@ fun OperationsLogBottomSheet(
                         text = "ЖУРНАЛ ОПЕРАЦИЙ",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DuroCyan,
+                        color = AppTheme.colors.accent,
                         letterSpacing = 1.sp
                     )
                     Text(
@@ -165,8 +165,8 @@ private fun FilterChipLabel(label: String, selected: Boolean, onClick: () -> Uni
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) DuroCyan.copy(alpha = 0.18f) else DuroSurface)
-            .border(1.dp, if (selected) DuroCyan else DuroBorder, RoundedCornerShape(10.dp))
+            .background(if (selected) AppTheme.colors.accent.copy(alpha = 0.18f) else DuroSurface)
+            .border(1.dp, if (selected) AppTheme.colors.accent else DuroBorder, RoundedCornerShape(10.dp))
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
@@ -174,7 +174,7 @@ private fun FilterChipLabel(label: String, selected: Boolean, onClick: () -> Uni
             text = label,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) DuroCyan else DuroTextSecondary
+            color = if (selected) AppTheme.colors.accent else DuroTextSecondary
         )
     }
 }
@@ -183,7 +183,7 @@ private fun FilterChipLabel(label: String, selected: Boolean, onClick: () -> Uni
 private fun LogRow(event: LogEvent) {
     val levelColor = when (event.level) {
         LogLevel.DEBUG -> DuroTextMuted
-        LogLevel.INFO -> DuroCyan
+        LogLevel.INFO -> AppTheme.colors.accent
         LogLevel.WARN -> DuroAmber
         LogLevel.ERROR -> DuroRed
     }

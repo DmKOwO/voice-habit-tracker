@@ -125,7 +125,6 @@ fun JournalScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .background(AppTheme.colors.background)
             .padding(horizontal = 20.dp)
     ) {

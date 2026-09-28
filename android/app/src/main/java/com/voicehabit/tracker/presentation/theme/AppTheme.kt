@@ -32,6 +32,7 @@ data class ThemePalette(
     val textPrimary: Color,
     val textSecondary: Color,
     val textMuted: Color,
+    val onAccent: Color = Color(0xFF0D0D10),
     val error: Color = Color(0xFFEF4444),
     val isAmoled: Boolean = false
 ) {
@@ -55,7 +56,8 @@ val NoirInkPalette = ThemePalette(
     accentSecondary = Color(0xFFE2DFD8),
     textPrimary = Color(0xFFF4F1EA),
     textSecondary = Color(0xFFA8A5A0),
-    textMuted = Color(0xFF7A7876)
+    textMuted = Color(0xFF7A7876),
+    onAccent = Color(0xFF101014)
 )
 
 val MarsRustPalette = ThemePalette(

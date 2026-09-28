@@ -12,10 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -84,22 +82,22 @@ data class ActivityPreset(
 )
 
 private val activityPresets = listOf(
-    ActivityPreset("Английский язык", "Study", "#0EA5E9", "GRID", "DAILY", Icons.Default.Translate),
-    ActivityPreset("Тренировка", "Fitness", "#A855F7", "BAR_GRAPH", "DAILY", Icons.Default.FitnessCenter),
-    ActivityPreset("Прогулка", "Fitness", "#84CC16", "STREAKS", "DAILY", Icons.Default.DirectionsRun),
-    ActivityPreset("Велозаезд", "Fitness", "#EC4899", "BAR_GRAPH", "WEEKLY", Icons.Default.DirectionsBike),
-    ActivityPreset("Чтение книги", "Evening", "#FF6B35", "STREAKS", "DAILY", Icons.Default.Book),
-    ActivityPreset("Пить воду", "Health", "#0EA5E9", "DAILY_CHECK", "DAILY", Icons.Default.WaterDrop),
-    ActivityPreset("Витамины", "Health", "#84CC16", "DAILY_CHECK", "DAILY", Icons.Default.WaterDrop),
-    ActivityPreset("Ранний подъём", "Morning", "#F59E0B", "STREAKS", "DAILY", Icons.Default.WbSunny),
-    ActivityPreset("Отбой до 23:00", "Evening", "#A855F7", "STREAKS", "DAILY", Icons.Default.Bedtime),
-    ActivityPreset("Медитация", "Mindset", "#EC4899", "MINIMAL", "DAILY", Icons.Default.SelfImprovement),
-    ActivityPreset("Растяжка", "Morning", "#FF6B35", "STREAKS", "DAILY", Icons.Default.Brush),
-    ActivityPreset("Уборка", "Home", "#0EA5E9", "GRID", "WEEKLY", Icons.Default.CleaningServices),
-    ActivityPreset("Нормальное питание", "Health", "#84CC16", "DAILY_CHECK", "DAILY", Icons.Default.Restaurant),
-    ActivityPreset("Откладывать деньги", "Mindset", "#F59E0B", "BAR_GRAPH", "WEEKLY", Icons.Default.Savings),
-    ActivityPreset("Код / практика", "Work", "#A855F7", "BAR_GRAPH", "DAILY", Icons.Default.Code),
-    ActivityPreset("Музыка", "Evening", "#EC4899", "GRID", "DAILY", Icons.Default.MusicNote)
+    ActivityPreset("Английский язык", "Study", "#F4F1EA", "GRID", "DAILY", Icons.Default.Translate),
+    ActivityPreset("Тренировка", "Fitness", "#DE6B48", "BAR_GRAPH", "DAILY", Icons.Default.FitnessCenter),
+    ActivityPreset("Прогулка", "Fitness", "#5BA872", "STREAKS", "DAILY", Icons.Default.DirectionsRun),
+    ActivityPreset("Велозаезд", "Fitness", "#C7A774", "BAR_GRAPH", "WEEKLY", Icons.Default.DirectionsBike),
+    ActivityPreset("Чтение книги", "Evening", "#F4F1EA", "STREAKS", "DAILY", Icons.Default.Book),
+    ActivityPreset("Пить воду", "Health", "#B8A5E3", "DAILY_CHECK", "DAILY", Icons.Default.WaterDrop),
+    ActivityPreset("Витамины", "Health", "#5BA872", "DAILY_CHECK", "DAILY", Icons.Default.WaterDrop),
+    ActivityPreset("Ранний подъём", "Morning", "#C7A774", "STREAKS", "DAILY", Icons.Default.WbSunny),
+    ActivityPreset("Отбой до 23:00", "Evening", "#B8A5E3", "STREAKS", "DAILY", Icons.Default.Bedtime),
+    ActivityPreset("Медитация", "Mindset", "#F4F1EA", "MINIMAL", "DAILY", Icons.Default.SelfImprovement),
+    ActivityPreset("Растяжка", "Morning", "#DE6B48", "STREAKS", "DAILY", Icons.Default.Brush),
+    ActivityPreset("Уборка", "Home", "#5BA872", "GRID", "WEEKLY", Icons.Default.CleaningServices),
+    ActivityPreset("Нормальное питание", "Health", "#5BA872", "DAILY_CHECK", "DAILY", Icons.Default.Restaurant),
+    ActivityPreset("Откладывать деньги", "Mindset", "#C7A774", "BAR_GRAPH", "WEEKLY", Icons.Default.Savings),
+    ActivityPreset("Код / практика", "Work", "#F4F1EA", "BAR_GRAPH", "DAILY", Icons.Default.Code),
+    ActivityPreset("Музыка", "Evening", "#B8A5E3", "GRID", "DAILY", Icons.Default.MusicNote)
 )
 
 private enum class CreateMode { HABIT, TASK }
@@ -115,11 +113,11 @@ fun CreateHabitScreen(
 ) {
     val displayOptions = remember {
         listOf(
-            DisplayOption("DAILY_CHECK", "Daily Check", "Check Daily Status.", DuroLime),
-            DisplayOption("GRID", "Grid Display", "Monthly Accomplishment in a grid.", DuroPurple),
-            DisplayOption("BAR_GRAPH", "Bar Graph", "Weekly Performance in a Bar Graph.", DuroCyan),
-            DisplayOption("STREAKS", "Streaks", "Finished Daily streak counter.", DuroOrange),
-            DisplayOption("MINIMAL", "Minimalism", "Clean focus with percentage.", DuroPink)
+            DisplayOption("DAILY_CHECK", "Чекбокс", "Лаконичный круглый чекбокс для ежедневной отметки.", DairyAccentWarm),
+            DisplayOption("GRID", "Сетка", "История выполнения за месяц в виде аккуратных точек.", MarsRustAccent),
+            DisplayOption("BAR_GRAPH", "Столбцы", "Прогресс за неделю в виде компактного графика.", EspressoAccent),
+            DisplayOption("STREAKS", "Серия", "Счётчик непрерывной цепочки успешных дней.", MidnightAccent),
+            DisplayOption("MINIMAL", "Минимализм", "Чистый фокус с процентом достижения.", DairySuccess)
         )
     }
 
@@ -127,7 +125,7 @@ fun CreateHabitScreen(
     var selectedDisplayIndex by remember { mutableIntStateOf(0) }
     var habitTitle by remember { mutableStateOf("") }
     var habitCategory by remember { mutableStateOf("Morning") }
-    var habitQuote by remember { mutableStateOf("Stay Hungry") }
+    var habitQuote by remember { mutableStateOf("") }
     var habitFrequency by remember { mutableStateOf("DAILY") }
     var taskType by remember { mutableStateOf(TaskType.QUICK) }
     var taskPriority by remember { mutableStateOf(Priority.MEDIUM) }
@@ -137,14 +135,14 @@ fun CreateHabitScreen(
 
     val colors = remember {
         listOf(
-            "#FF6B35" to DuroOrange,
-            "#A855F7" to DuroPurple,
-            "#0EA5E9" to DuroCyan,
-            "#84CC16" to DuroLime,
-            "#EC4899" to DuroPink
+            "#F4F1EA" to DairyAccentWarm,
+            "#DE6B48" to MarsRustAccent,
+            "#C7A774" to EspressoAccent,
+            "#B8A5E3" to MidnightAccent,
+            "#5BA872" to DairySuccess
         )
     }
-    var selectedColorHex by remember { mutableStateOf("#FF6B35") }
+    var selectedColorHex by remember { mutableStateOf("#F4F1EA") }
 
     val categories = remember(viewModel) {
         (listOf("Morning", "Fitness", "Work", "Health", "Home", "Study", "Evening", "Mindset") +
@@ -154,7 +152,7 @@ fun CreateHabitScreen(
     val selectedColor = try {
         Color(android.graphics.Color.parseColor(selectedColorHex))
     } catch (e: Exception) {
-        DuroOrange
+        AppTheme.colors.accent
     }
 
     val haptics = rememberDuroHaptics()
@@ -213,10 +211,10 @@ fun CreateHabitScreen(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
                     containerColor = DuroSurface,
-                    iconTint = DuroOrange
+                    iconTint = AppTheme.colors.accent
                 )
 
-                DuroAsterisk(size = 24.dp, color = DuroOrange)
+                DuroAsterisk(size = 24.dp, color = AppTheme.colors.accent)
             }
         },
         bottomBar = {
@@ -237,7 +235,7 @@ fun CreateHabitScreen(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Cancel",
                     containerColor = DuroSurface,
-                    iconTint = DuroOrange,
+                    iconTint = AppTheme.colors.accent,
                     size = 52.dp,
                     iconSize = 24.dp
                 )
@@ -249,8 +247,8 @@ fun CreateHabitScreen(
                     },
                     icon = Icons.Default.DoneAll,
                     contentDescription = "Confirm",
-                    containerColor = DuroOrange,
-                    iconTint = Color.Black,
+                    containerColor = AppTheme.colors.accent,
+                    iconTint = AppTheme.colors.onAccent,
                     size = 56.dp,
                     iconSize = 28.dp,
                     pressedScale = 0.92f
@@ -262,8 +260,6 @@ fun CreateHabitScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 32.dp)
         ) {
@@ -277,14 +273,14 @@ fun CreateHabitScreen(
                 ModeChip(
                     label = "Привычка",
                     selected = mode == CreateMode.HABIT,
-                    accent = DuroOrange,
+                    accent = AppTheme.colors.accent,
                     modifier = Modifier.weight(1f),
                     onClick = { mode = CreateMode.HABIT }
                 )
                 ModeChip(
                     label = "Задача",
                     selected = mode == CreateMode.TASK,
-                    accent = DuroCyan,
+                    accent = AppTheme.colors.accent,
                     modifier = Modifier.weight(1f),
                     onClick = { mode = CreateMode.TASK }
                 )
@@ -401,10 +397,10 @@ private fun HabitCreationContent(
                     color = DuroTextSecondary
                 )
                 Text(
-                    text = "🎲 Удиви меня",
+                    text = "Удиви меня",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = DuroPurple,
+                    color = AppTheme.colors.accent,
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .clickable { onSurpriseMe() }
@@ -461,15 +457,15 @@ private fun HabitCreationContent(
         // Заголовок секции визуализации
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Text(
-                text = "How should we visualize it?",
+                text = "Как отображать?",
                 fontSize = 13.sp,
                 color = DuroTextSecondary,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Display",
-                fontSize = 34.sp,
+                text = "Вид карточки",
+                fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = DuroTextPrimary
             )
@@ -652,7 +648,7 @@ private fun HabitCreationContent(
                 value = quote,
                 onValueChange = onQuoteChange,
                 label = { Text("Мотивационная цитата", color = DuroTextSecondary) },
-                placeholder = { Text("Stay Hungry / Win the day", color = DuroTextMuted) },
+                placeholder = { Text("Необязательно", color = DuroTextMuted) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = duioFieldColors(selectedColor),
@@ -691,14 +687,14 @@ private fun TaskCreationContent(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(
-                Triple("📞 Позвонить", "Позвонить", "General"),
-                Triple("🛒 Купить", "Купить", "Shopping"),
-                Triple("💳 Оплатить", "Оплатить", "Finance")
+                Triple("Позвонить", "Позвонить", "General"),
+                Triple("Купить", "Купить", "Shopping"),
+                Triple("Оплатить", "Оплатить", "Finance")
             ).forEach { (label, title, cat) ->
                 ModeChip(
                     label = label,
                     selected = false,
-                    accent = DuroCyan,
+                    accent = AppTheme.colors.accent,
                     modifier = Modifier.weight(1f),
                     onClick = {
                         onTitleChange(title)
@@ -719,7 +715,7 @@ private fun TaskCreationContent(
             TaskTypeCard(
                 modifier = Modifier.weight(1f),
                 selected = taskType == TaskType.QUICK,
-                accent = DuroCyan,
+                accent = AppTheme.colors.accent,
                 icon = Icons.Default.Bolt,
                 title = "Быстрая",
                 description = "Одно действие: закрыл — и забыл",
@@ -728,7 +724,7 @@ private fun TaskCreationContent(
             TaskTypeCard(
                 modifier = Modifier.weight(1f),
                 selected = taskType == TaskType.LONG,
-                accent = DuroPurple,
+                accent = AppTheme.colors.accentSecondary,
                 icon = Icons.Default.LocalFireDepartment,
                 title = "Долгая",
                 description = "Цель как привычка, живёт в списке",
@@ -745,7 +741,7 @@ private fun TaskCreationContent(
                 .fillMaxWidth()
                 .animateContentSize(),
             shape = RoundedCornerShape(16.dp),
-            colors = duioFieldColors(DuroCyan),
+            colors = duioFieldColors(AppTheme.colors.accent),
             singleLine = true
         )
 
@@ -787,7 +783,7 @@ private fun TaskCreationContent(
                     ModeChip(
                         label = label,
                         selected = dueOffset == offset,
-                        accent = DuroOrange,
+                        accent = AppTheme.colors.accent,
                         modifier = Modifier.weight(1f),
                         onClick = { onDueOffsetChange(offset) }
                     )
@@ -812,7 +808,7 @@ private fun TaskCreationContent(
                         ModeChip(
                             label = cat,
                             selected = cat == category,
-                            accent = DuroCyan,
+                            accent = AppTheme.colors.accent,
                             modifier = Modifier.weight(1f),
                             onClick = { onCategoryChange(cat) }
                         )
@@ -1000,7 +996,7 @@ private fun AddCategoryRow(onAddCategory: (String) -> Unit) {
                     },
                     enabled = newName.isNotBlank()
                 ) {
-                    Text("Добавить", color = DuroOrange)
+                    Text("Добавить", color = AppTheme.colors.accent)
                 }
             },
             dismissButton = {

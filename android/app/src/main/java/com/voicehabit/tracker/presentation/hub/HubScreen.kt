@@ -6,14 +6,21 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,7 +67,8 @@ fun ScreenHeader(title: String, subtitle: String? = null, onBack: () -> Unit) {
 
 data class HubItem(
     val screen: AppScreen,
-    val emoji: String,
+    val iconRes: Int? = null,
+    val vectorIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     val title: String,
     val subtitle: String
 )
@@ -67,22 +76,22 @@ data class HubItem(
 @Composable
 fun HubScreen(viewModel: HomeViewModel) {
     val items = listOf(
-        HubItem(AppScreen.STATS, "📊", "Статистика", "Год, дни, фокус, настроение"),
-        HubItem(AppScreen.ARCHIVE, "🗄️", "Архив и корзина", "Восстановление за 30 дней"),
-        HubItem(AppScreen.ROUTINES, "⚡", "Рутины", "Одна фраза — много привычек"),
-        HubItem(AppScreen.CHALLENGES, "🏁", "Челленджи", "30 дней подряд"),
-        HubItem(AppScreen.ACHIEVEMENTS, "🏆", "Достижения", "Бейджи и рекорды"),
-        HubItem(AppScreen.DIGESTS, "◎", "Конспекты", "Выжимки разговоров и мыслей"),
-        HubItem(AppScreen.REVIEW, "🌙", "Вечерний разбор", "Итог дня и план"),
-        HubItem(AppScreen.FOCUS, "🧠", "Фокус", "Pomodoro-таймер"),
-        HubItem(AppScreen.BACKUP, "💾", "Бэкап", "Экспорт и импорт"),
-        HubItem(AppScreen.ABOUT, "ℹ️", "О приложении", "Версия и GitHub")
+        HubItem(AppScreen.STATS, iconRes = com.voicehabit.tracker.R.drawable.ic_analytics_trend, title = "Статистика", subtitle = "Год, дни, фокус, настроение"),
+        HubItem(AppScreen.ARCHIVE, vectorIcon = Icons.Default.Inventory2, title = "Архив и корзина", subtitle = "Восстановление за 30 дней"),
+        HubItem(AppScreen.ROUTINES, iconRes = com.voicehabit.tracker.R.drawable.ic_routines_cycle, title = "Рутины", subtitle = "Одна фраза — много привычек"),
+        HubItem(AppScreen.CHALLENGES, iconRes = com.voicehabit.tracker.R.drawable.ic_challenges_peak, title = "Челленджи", subtitle = "30 дней подряд"),
+        HubItem(AppScreen.ACHIEVEMENTS, iconRes = com.voicehabit.tracker.R.drawable.ic_achievements_spark, title = "Достижения", subtitle = "Бейджи и рекорды"),
+        HubItem(AppScreen.DIGESTS, iconRes = com.voicehabit.tracker.R.drawable.ic_journal_night, title = "Конспекты", subtitle = "Выжимки разговоров и мыслей"),
+        HubItem(AppScreen.REVIEW, iconRes = com.voicehabit.tracker.R.drawable.ic_journal_night, title = "Вечерний разбор", subtitle = "Итог дня и план"),
+        HubItem(AppScreen.FOCUS, vectorIcon = Icons.Default.RadioButtonChecked, title = "Фокус", subtitle = "Pomodoro-таймер"),
+        HubItem(AppScreen.BACKUP, vectorIcon = Icons.Default.CloudUpload, title = "Бэкап", subtitle = "Экспорт и импорт"),
+        HubItem(AppScreen.ABOUT, vectorIcon = Icons.Default.HelpOutline, title = "О приложении", subtitle = "Версия и GitHub")
     )
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .background(DuroBackground)
+            .background(AppTheme.colors.background)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -98,8 +107,12 @@ fun HubScreen(viewModel: HomeViewModel) {
                 HubCard(item = item, onClick = { viewModel.openScreen(item.screen) })
             }
             item {
-                // Быстрая заморозка дня прямо из хаба (F6).
-                HubActionCard(emoji = "❄️", title = "Заморозить день", subtitle = "Стрик не прервётся") {
+                // Быстрая заморозка дня прямо из хаба
+                HubActionCard(
+                    icon = Icons.Default.PauseCircle,
+                    title = "Заморозить день",
+                    subtitle = "Стрик не прервётся"
+                ) {
                     viewModel.freezeToday()
                 }
             }
@@ -112,34 +125,60 @@ private fun HubCard(item: HubItem, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(DuroSurface)
+            .background(AppTheme.colors.surface)
+            .border(1.dp, AppTheme.colors.border, RoundedCornerShape(16.dp))
             .clickable { onClick() }
             .padding(16.dp)
     ) {
-        Text(text = item.emoji, fontSize = 28.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = item.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DuroTextPrimary)
-        Text(text = item.subtitle, fontSize = 11.sp, color = DuroTextSecondary)
+        if (item.iconRes != null) {
+            Icon(
+                painter = androidx.compose.ui.res.painterResource(id = item.iconRes),
+                contentDescription = null,
+                tint = AppTheme.colors.accent,
+                modifier = Modifier.size(24.dp)
+            )
+        } else if (item.vectorIcon != null) {
+            Icon(
+                imageVector = item.vectorIcon,
+                contentDescription = null,
+                tint = AppTheme.colors.accent,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(text = item.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+        Text(text = item.subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
     }
 }
 
 @Composable
-private fun HubActionCard(emoji: String, title: String, subtitle: String, onClick: () -> Unit) {
+private fun HubActionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(DuroSurface)
+            .background(AppTheme.colors.surface)
+            .border(1.dp, AppTheme.colors.border, RoundedCornerShape(16.dp))
             .clickable { onClick() }
             .padding(16.dp)
     ) {
-        Text(text = emoji, fontSize = 28.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DuroCyan)
-        Text(text = subtitle, fontSize = 11.sp, color = DuroTextSecondary)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AppTheme.colors.accent,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.accent)
+        Text(text = subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
     }
 }
 
-/** G31: пульс-празднование закрытого дня. */
+/** Пульс-празднование закрытого дня. */
 @Composable
 fun CelebrationOverlay(onDismiss: () -> Unit) {
     val transition = rememberInfiniteTransition(label = "celebrate")
@@ -152,20 +191,30 @@ fun CelebrationOverlay(onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DuroBackground.copy(alpha = 0.92f))
+            .background(Color.Black.copy(alpha = 0.85f))
             .clickable { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "🎉", fontSize = 72.sp, modifier = Modifier.scale(scale))
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .scale(scale)
+                    .clip(CircleShape)
+                    .background(AppTheme.colors.surfaceElevated)
+                    .border(1.dp, AppTheme.colors.accent, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                DairyLogo(size = 40.dp, color = AppTheme.colors.accent)
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Всё выполнено!",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = DuroTextPrimary
+                text = "Всё выполнено",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppTheme.colors.textPrimary
             )
-            Text(text = "Нажмите, чтобы продолжить", fontSize = 13.sp, color = DuroTextSecondary)
+            Text(text = "Нажмите, чтобы продолжить", fontSize = 13.sp, color = AppTheme.colors.textSecondary)
         }
     }
 }

@@ -43,12 +43,14 @@ val DuroBorder = DairyBorder
 // DuroOrange purged: redirected to refined ivory/white accent
 val DuroOrange = DairyAccentWarm
 val DuroJournalLavender = Color(0xFFB8A5E3)
-val DuroPurple = Color(0xFF9D84D6)
-val DuroCyan = Color(0xFF7AA2F7)
+// DuroCyan blue purged: redirected to refined warm ivory/accent
+val DuroCyan = DairyAccentWarm
 val DuroLime = Color(0xFF73D216)
 val DuroPink = Color(0xFFE06C75)
 val DuroAmber = Color(0xFFD19A66)
 val DuroRed = DairyDanger
+// DuroPurple purged: redirected to Midnight celestial lavender
+val DuroPurple = MidnightAccent
 
 val DuroTextPrimary = Color(0xFFF4F1EA)
 val DuroTextSecondary = Color(0xFFA8A5A0)

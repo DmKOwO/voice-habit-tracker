@@ -172,9 +172,9 @@ fun SettingsDialog(
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             modifier = Modifier.wrapContentWidth()
                         ) {
-                            Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp), tint = DuroCyan)
+                            Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppTheme.colors.accent)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Вставить", fontSize = 11.sp, color = DuroCyan, maxLines = 1, softWrap = false)
+                            Text("Вставить", fontSize = 11.sp, color = AppTheme.colors.accent, maxLines = 1, softWrap = false)
                         }
                     }
                     OutlinedTextField(
@@ -183,7 +183,7 @@ fun SettingsDialog(
                         placeholder = { Text("AIzaSy...", fontSize = 12.sp, color = DuroTextMuted) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = DuroCyan,
+                            focusedBorderColor = AppTheme.colors.accent,
                             unfocusedBorderColor = DuroBorder,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White
@@ -266,7 +266,7 @@ fun SettingsDialog(
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
-                        tint = DuroCyan,
+                        tint = AppTheme.colors.accent,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
@@ -537,7 +537,7 @@ fun SettingsDialog(
                         LinearProgressIndicator(
                             progress = { voskStatus?.second ?: 0f },
                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            color = DuroCyan
+                            color = AppTheme.colors.accent
                         )
                     }
                     if (voskStatus?.first != "READY") {
@@ -638,7 +638,7 @@ private fun UpdateStatusContent(
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(16.dp),
-                color = DuroCyan,
+                color = AppTheme.colors.accent,
                 strokeWidth = 2.dp
             )
             Text("Проверяем наличие обновлений на GitHub…", fontSize = 12.sp, color = DuroTextSecondary)
@@ -709,7 +709,7 @@ private fun UpdateStatusContent(
                 LinearProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxWidth(),
-                    color = DuroCyan,
+                    color = AppTheme.colors.accent,
                     trackColor = DuroBorder
                 )
                 Text(
@@ -724,7 +724,7 @@ private fun UpdateStatusContent(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
-                        color = DuroCyan,
+                        color = AppTheme.colors.accent,
                         strokeWidth = 2.dp
                     )
                     Text(
