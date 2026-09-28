@@ -99,10 +99,10 @@ fun ProfileMenuSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = DuroSurface,
+        containerColor = AppTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = {
-            BottomSheetDefaults.DragHandle(color = DuroBorder)
+            BottomSheetDefaults.DragHandle(color = AppTheme.colors.border)
         }
     ) {
         Column(
@@ -118,12 +118,12 @@ fun ProfileMenuSheet(
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Surface(
-                    color = DuroOrange.copy(alpha = 0.15f),
+                    color = AppTheme.colors.accent.copy(alpha = 0.15f),
                     shape = CircleShape,
                     modifier = Modifier.size(52.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        DuroAsterisk(size = 28.dp, color = DuroOrange)
+                        DairyLogo(size = 28.dp, color = AppTheme.colors.accent)
                     }
                 }
 
@@ -132,25 +132,25 @@ fun ProfileMenuSheet(
                         text = "Профиль и система",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = DuroTextPrimary
+                        color = AppTheme.colors.textPrimary
                     )
                     Text(
-                        text = "Voice Habit & Journal v2.0 • Duro",
+                        text = "dairy v1.2.0 • Minimalist Edition",
                         fontSize = 12.sp,
-                        color = DuroTextSecondary
+                        color = AppTheme.colors.textSecondary
                     )
                 }
             }
 
-            HorizontalDivider(color = DuroBorder)
+            HorizontalDivider(color = AppTheme.colors.border)
 
             // Settings Items List
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProfileMenuItem(
                     icon = Icons.Default.Settings,
                     title = "Настройки ИИ и API-ключей",
-                    subtitle = if (hasApiKeys) "Ключи Groq & Gemini настроены" else "⚡ Требуется настройка ключей",
-                    badgeColor = if (hasApiKeys) DuroLime else DuroOrange,
+                    subtitle = if (hasApiKeys) "Ключи Groq & Gemini настроены" else "Требуется настройка ключей",
+                    badgeColor = if (hasApiKeys) AppTheme.colors.accent else AppTheme.colors.error,
                     onClick = {
                         onDismiss()
                         onOpenSettings()
@@ -161,7 +161,7 @@ fun ProfileMenuSheet(
                     icon = Icons.Default.Sync,
                     title = "Синхронизация с Obsidian Vault",
                     subtitle = if (isObsidianConfigured) "Подключено: $obsidianVaultName • Экспорт" else "Выбор папки Vault и экспорт заметок",
-                    badgeColor = if (isObsidianConfigured) DuroLime else DuroJournalLavender,
+                    badgeColor = AppTheme.colors.accent,
                     onClick = {
                         onOpenObsidianSync()
                     }
@@ -171,7 +171,7 @@ fun ProfileMenuSheet(
                     icon = Icons.Default.Archive,
                     title = "Архив и корзина",
                     subtitle = "Восстановление привычек и задач",
-                    badgeColor = DuroCyan,
+                    badgeColor = AppTheme.colors.accentSecondary,
                     onClick = {
                         onDismiss()
                         onOpenArchive()
@@ -182,7 +182,7 @@ fun ProfileMenuSheet(
                     icon = Icons.Default.CloudQueue,
                     title = "Очередь голосовой обработки",
                     subtitle = "Офлайн-буфер и статус распознавания",
-                    badgeColor = DuroTextSecondary,
+                    badgeColor = AppTheme.colors.textSecondary,
                     onClick = {
                         onDismiss()
                         onOpenQueue()
@@ -193,7 +193,7 @@ fun ProfileMenuSheet(
                     icon = Icons.Default.Terminal,
                     title = "Журнал операций",
                     subtitle = "Логирование и активные фоновые задачи",
-                    badgeColor = DuroAmber,
+                    badgeColor = AppTheme.colors.accent,
                     onClick = {
                         onDismiss()
                         onOpenOperationsLog()
@@ -202,9 +202,9 @@ fun ProfileMenuSheet(
 
                 ProfileMenuItem(
                     icon = Icons.Default.Info,
-                    title = "О приложении Duro Edition",
+                    title = "О приложении dairy",
                     subtitle = "Архитектура спокойной продуктивности и Дневника мыслей",
-                    badgeColor = DuroTextMuted,
+                    badgeColor = AppTheme.colors.textMuted,
                     onClick = {
                         onDismiss()
                         onOpenAbout()
@@ -224,9 +224,9 @@ fun ProfileMenuItem(
     onClick: () -> Unit
 ) {
     Surface(
-        color = DuroSurfaceElevated,
+        color = AppTheme.colors.surfaceElevated,
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -252,15 +252,15 @@ fun ProfileMenuItem(
                 }
 
                 Column {
-                    Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DuroTextPrimary)
-                    Text(text = subtitle, fontSize = 11.sp, color = DuroTextSecondary)
+                    Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                    Text(text = subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
                 }
             }
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = DuroTextMuted,
+                tint = AppTheme.colors.textMuted,
                 modifier = Modifier.size(20.dp)
             )
         }

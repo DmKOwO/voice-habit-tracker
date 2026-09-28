@@ -82,6 +82,7 @@ class HomeViewModel @JvmOverloads constructor(
             it.copy(
                 hasApiKeysConfigured = settings.hasDirectKeys,
                 showOnboarding = !settings.onboardingDone,
+                themePreset = settings.themePreset,
                 amoledTheme = settings.amoledTheme,
                 fontScale = settings.fontScale,
                 appLanguage = settings.appLanguage,
@@ -1796,10 +1797,16 @@ class HomeViewModel @JvmOverloads constructor(
         _state.update { it.copy(amoledTheme = settings.amoledTheme) }
     }
 
+    fun setThemePreset(preset: com.voicehabit.tracker.presentation.theme.AppThemePreset) {
+        settings.themePreset = preset
+        _state.update { it.copy(themePreset = preset) }
+    }
+
     /** Синхронизация темы после прямого изменения настроек из диалога. */
     fun refreshThemeState() {
         _state.update {
             it.copy(
+                themePreset = settings.themePreset,
                 amoledTheme = settings.amoledTheme,
                 fontScale = settings.fontScale,
                 appLanguage = settings.appLanguage

@@ -92,7 +92,7 @@ fun JournalScreen(
         val groups = mutableListOf<Pair<String, List<DigestRecord>>>()
 
         if (pinned.isNotEmpty()) {
-            groups.add("📌 Закреплённые мысли" to pinned)
+            groups.add("Закреплённые мысли" to pinned)
         }
 
         val todayItems = unpinned.filter {
@@ -126,7 +126,7 @@ fun JournalScreen(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .background(DuroBackground)
+            .background(AppTheme.colors.background)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -140,14 +140,19 @@ fun JournalScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(text = "📖", fontSize = 22.sp)
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(id = com.voicehabit.tracker.R.drawable.ic_journal_night),
+                        contentDescription = null,
+                        tint = AppTheme.colors.accent,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Text(
                         text = "Дневник мыслей",
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            color = DuroTextPrimary
+                            color = AppTheme.colors.textPrimary
                         )
                     )
                 }
@@ -160,7 +165,7 @@ fun JournalScreen(
                         "записей мыслей"
                     ),
                     fontSize = 12.sp,
-                    color = DuroTextSecondary
+                    color = AppTheme.colors.textSecondary
                 )
             }
         }
@@ -171,12 +176,12 @@ fun JournalScreen(
         OutlinedTextField(
             value = state.journalSearchQuery,
             onValueChange = { viewModel.setJournalSearchQuery(it) },
-            placeholder = { Text("Поиск по мыслям и расшифровкам…", fontSize = 13.sp, color = DuroTextMuted) },
+            placeholder = { Text("Поиск по мыслям и расшифровкам…", fontSize = 13.sp, color = AppTheme.colors.textMuted) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Поиск",
-                    tint = DuroJournalLavender,
+                    tint = AppTheme.colors.accent,
                     modifier = Modifier.size(20.dp)
                 )
             },
@@ -186,20 +191,20 @@ fun JournalScreen(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Очистить",
-                            tint = DuroTextMuted,
+                            tint = AppTheme.colors.textMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             },
             singleLine = true,
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = DuroTextPrimary),
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = AppTheme.colors.textPrimary),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = DuroJournalLavender,
-                unfocusedBorderColor = DuroBorder,
-                cursorColor = DuroJournalLavender,
-                focusedContainerColor = DuroSurface,
-                unfocusedContainerColor = DuroSurface
+                focusedBorderColor = AppTheme.colors.accent,
+                unfocusedBorderColor = AppTheme.colors.border,
+                cursorColor = AppTheme.colors.accent,
+                focusedContainerColor = AppTheme.colors.surface,
+                unfocusedContainerColor = AppTheme.colors.surface
             ),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
@@ -223,11 +228,11 @@ fun JournalScreen(
                 }
 
                 Surface(
-                    color = if (isSelected) DuroJournalLavender else DuroSurface,
+                    color = if (isSelected) AppTheme.colors.accent else AppTheme.colors.surface,
                     shape = RoundedCornerShape(20.dp),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (isSelected) DuroJournalLavender else DuroBorder
+                        if (isSelected) AppTheme.colors.accent else AppTheme.colors.border
                     ),
                     modifier = Modifier
                         .height(38.dp)
@@ -256,7 +261,7 @@ fun JournalScreen(
                             text = filter,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else DuroTextSecondary
+                            color = if (isSelected) (if (LocalAppPalette.current.id == "noir_ink") Color(0xFF101014) else Color.White) else AppTheme.colors.textSecondary
                         )
                     }
                 }
@@ -282,7 +287,7 @@ fun JournalScreen(
                             text = groupTitle.uppercase(Locale.getDefault()),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroJournalLavender,
+                            color = AppTheme.colors.accent,
                             letterSpacing = 1.sp,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
@@ -330,11 +335,11 @@ fun JournalThoughtCard(
     }
 
     Surface(
-        color = DuroSurface,
+        color = AppTheme.colors.surface,
         shape = RoundedCornerShape(18.dp),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (record.pinned) DuroJournalLavender.copy(alpha = 0.5f) else DuroBorder
+            if (record.pinned) AppTheme.colors.accent.copy(alpha = 0.5f) else AppTheme.colors.border
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -356,7 +361,7 @@ fun JournalThoughtCard(
                         Icon(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = "Закреплено",
-                            tint = DuroOrange,
+                            tint = AppTheme.colors.accent,
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -364,20 +369,20 @@ fun JournalThoughtCard(
                         text = timeLabel,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = DuroTextMuted
+                        color = AppTheme.colors.textMuted
                     )
                 }
 
                 if (record.tone.isNotBlank()) {
                     Surface(
-                        color = DuroJournalLavender.copy(alpha = 0.15f),
+                        color = AppTheme.colors.accent.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
                             text = record.tone,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroJournalLavender,
+                            color = AppTheme.colors.accent,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
@@ -392,7 +397,7 @@ fun JournalThoughtCard(
                 fontSize = 17.sp,
                 lineHeight = 23.sp,
                 fontWeight = FontWeight.Bold,
-                color = DuroTextPrimary,
+                color = AppTheme.colors.textPrimary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -408,13 +413,13 @@ fun JournalThoughtCard(
                         modifier = Modifier
                             .width(3.dp)
                             .height(36.dp)
-                            .background(DuroJournalLavender, RoundedCornerShape(2.dp))
+                            .background(AppTheme.colors.accent, RoundedCornerShape(2.dp))
                     )
                     Text(
                         text = "«${record.gist}»",
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
-                        color = DuroTextSecondary,
+                        color = AppTheme.colors.textSecondary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -431,11 +436,11 @@ fun JournalThoughtCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.Top
                     ) {
-                        Text(text = "•", color = DuroJournalLavender, fontSize = 11.sp)
+                        Text(text = "•", color = AppTheme.colors.accent, fontSize = 11.sp)
                         Text(
                             text = point,
                             fontSize = 12.sp,
-                            color = DuroTextMuted,
+                            color = AppTheme.colors.textMuted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -457,7 +462,7 @@ fun JournalThoughtCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isPlaying) DuroJournalLavender else DuroSurfaceElevated)
+                        .background(if (isPlaying) AppTheme.colors.accent else AppTheme.colors.surfaceElevated)
                         .clickable {
                             haptics.select()
                             viewModel.playAudioForRecord(record)
@@ -467,14 +472,14 @@ fun JournalThoughtCard(
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Пауза" else "Слушать запись",
-                        tint = if (isPlaying) Color.White else DuroJournalLavender,
+                        tint = if (isPlaying) AppTheme.colors.surface else AppTheme.colors.accent,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = if (isPlaying) "Играет…" else "Слушать голос",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isPlaying) Color.White else DuroTextPrimary
+                        color = if (isPlaying) AppTheme.colors.surface else AppTheme.colors.textPrimary
                     )
                 }
 
@@ -485,7 +490,7 @@ fun JournalThoughtCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(DuroOrange.copy(alpha = 0.12f))
+                            .background(AppTheme.colors.accent.copy(alpha = 0.12f))
                             .clickable {
                                 haptics.confirm()
                                 val step = record.nextSteps.first()
@@ -493,12 +498,12 @@ fun JournalThoughtCard(
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text(text = "→", fontSize = 12.sp, color = DuroOrange, fontWeight = FontWeight.Bold)
+                        Text(text = "→", fontSize = 12.sp, color = AppTheme.colors.accent, fontWeight = FontWeight.Bold)
                         Text(
                             text = "+ В задачи",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroOrange
+                            color = AppTheme.colors.accent
                         )
                     }
                 }
@@ -517,13 +522,18 @@ private fun EmptyJournalView(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Surface(
-            color = DuroSurface,
+            color = AppTheme.colors.surface,
             shape = CircleShape,
-            border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
             modifier = Modifier.size(80.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text(text = "📖", fontSize = 36.sp)
+                Icon(
+                    painter = androidx.compose.ui.res.painterResource(id = com.voicehabit.tracker.R.drawable.ic_journal_night),
+                    contentDescription = null,
+                    tint = AppTheme.colors.accent,
+                    modifier = Modifier.size(36.dp)
+                )
             }
         }
 
@@ -533,16 +543,16 @@ private fun EmptyJournalView(modifier: Modifier = Modifier) {
             text = "Пространство ваших мыслей",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = DuroTextPrimary
+            color = AppTheme.colors.textPrimary
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Зажмите кнопку микрофона и просто говорите. Делитесь рефлексией, переживаниями или идеями без команд «напомни/сделай». Duro сам бережно структурирует суть, тезисы и настроение.",
+            text = "Зажмите кнопку микрофона и просто говорите. Делитесь рефлексией, переживаниями или идеями без команд «напомни/сделай». dairy сам бережно структурирует суть, тезисы и настроение.",
             fontSize = 13.sp,
             lineHeight = 19.sp,
-            color = DuroTextSecondary,
+            color = AppTheme.colors.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }

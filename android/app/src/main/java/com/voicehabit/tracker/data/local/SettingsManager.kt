@@ -53,7 +53,13 @@ class SettingsManager(context: Context) {
     val hasDirectKeys: Boolean
         get() = effectiveGroqApiKey.isNotBlank() && effectiveGeminiApiKey.isNotBlank()
 
-    /** F19/G-серия: тема, масштаб шрифта, язык, тихие часы, онбординг. */
+    var themePreset: com.voicehabit.tracker.presentation.theme.AppThemePreset
+        get() = com.voicehabit.tracker.presentation.theme.AppThemePreset.fromId(
+            prefs.getString(KEY_THEME_PRESET, com.voicehabit.tracker.presentation.theme.AppThemePreset.NOIR_INK.id)
+                ?: com.voicehabit.tracker.presentation.theme.AppThemePreset.NOIR_INK.id
+        )
+        set(value) = prefs.edit().putString(KEY_THEME_PRESET, value.id).apply()
+
     var amoledTheme: Boolean
         get() = prefs.getBoolean(KEY_AMOLED_THEME, false)
         set(value) = prefs.edit().putBoolean(KEY_AMOLED_THEME, value).apply()
@@ -124,6 +130,7 @@ class SettingsManager(context: Context) {
         private const val KEY_LAST_GITHUB_CHECK = "key_last_github_check"
         private const val KEY_LAST_GITHUB_AUTO_TAG = "key_last_github_auto_tag"
         private const val KEY_AMOLED_THEME = "key_amoled_theme"
+        private const val KEY_THEME_PRESET = "key_theme_preset"
         private const val KEY_FONT_SCALE = "key_font_scale"
         private const val KEY_APP_LANGUAGE = "key_app_language"
         private const val KEY_QUIET_HOURS = "key_quiet_hours"

@@ -11,10 +11,10 @@
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <!-- Тема только для холодного старта: тёмный фон + астериск, снимается installSplashScreen() -->
+    <!-- Тема только для холодного старта: тёмный фон + логотип dairy, снимается installSplashScreen() -->
     <style name="Theme.VoiceHabitTracker.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/duro_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_duro_asterisk</item>
+        <item name="windowSplashScreenBackground">@color/dairy_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_dairy_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.VoiceHabitTracker</item>
     </style>
 

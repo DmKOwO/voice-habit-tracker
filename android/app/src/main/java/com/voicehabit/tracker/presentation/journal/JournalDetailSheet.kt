@@ -88,7 +88,7 @@ fun JournalDetailSheet(
     )
 
     Scaffold(
-        containerColor = DuroBackground,
+        containerColor = AppTheme.colors.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Row(
@@ -104,12 +104,12 @@ fun JournalDetailSheet(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(DuroSurface)
+                        .background(AppTheme.colors.surface)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = DuroTextPrimary
+                        tint = AppTheme.colors.textPrimary
                     )
                 }
 
@@ -124,12 +124,12 @@ fun JournalDetailSheet(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(if (isPinned) DuroJournalLavender.copy(alpha = 0.2f) else DuroSurface)
+                            .background(if (isPinned) AppTheme.colors.accent.copy(alpha = 0.2f) else AppTheme.colors.surface)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = "Закрепить",
-                            tint = if (isPinned) DuroJournalLavender else DuroTextSecondary
+                            tint = if (isPinned) AppTheme.colors.accent else AppTheme.colors.textSecondary
                         )
                     }
 
@@ -154,12 +154,12 @@ fun JournalDetailSheet(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(if (state.isObsidianConfigured) DuroJournalLavender.copy(alpha = 0.2f) else DuroSurface)
+                            .background(if (state.isObsidianConfigured) AppTheme.colors.accent.copy(alpha = 0.2f) else AppTheme.colors.surface)
                     ) {
                         Icon(
                             imageVector = if (state.isObsidianConfigured) Icons.Default.Save else Icons.Default.ContentCopy,
                             contentDescription = "Obsidian MD",
-                            tint = if (state.isObsidianConfigured) DuroJournalLavender else DuroTextPrimary
+                            tint = if (state.isObsidianConfigured) AppTheme.colors.accent else AppTheme.colors.textPrimary
                         )
                     }
 
@@ -178,12 +178,12 @@ fun JournalDetailSheet(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(DuroSurface)
+                            .background(AppTheme.colors.surface)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Поделиться",
-                            tint = DuroTextPrimary
+                            tint = AppTheme.colors.textPrimary
                         )
                     }
 
@@ -197,12 +197,12 @@ fun JournalDetailSheet(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(DuroSurface)
+                            .background(AppTheme.colors.surface)
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Удалить",
-                            tint = DuroRed
+                            tint = AppTheme.colors.error
                         )
                     }
                 }
@@ -227,19 +227,19 @@ fun JournalDetailSheet(
                     Text(
                         text = formattedDate,
                         fontSize = 13.sp,
-                        color = DuroTextMuted
+                        color = AppTheme.colors.textMuted
                     )
 
                     if (digest.tone.isNotBlank()) {
                         Surface(
-                            color = DuroJournalLavender.copy(alpha = 0.16f),
+                            color = AppTheme.colors.accent.copy(alpha = 0.16f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = digest.tone,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DuroJournalLavender,
+                                color = AppTheme.colors.accent,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
@@ -254,16 +254,16 @@ fun JournalDetailSheet(
                     fontSize = 26.sp,
                     lineHeight = 34.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = DuroTextPrimary
+                    color = AppTheme.colors.textPrimary
                 )
             }
 
             // Audio Player Bar (if recording exists)
             item {
                 Surface(
-                    color = DuroSurface,
+                    color = AppTheme.colors.surface,
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -279,12 +279,12 @@ fun JournalDetailSheet(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(DuroJournalLavender)
+                                .background(AppTheme.colors.accent)
                         ) {
                             Icon(
                                 imageVector = if (isThisAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isThisAudioPlaying) "Пауза" else "Слушать",
-                                tint = Color.White
+                                tint = AppTheme.colors.surface
                             )
                         }
 
@@ -293,7 +293,7 @@ fun JournalDetailSheet(
                                 text = if (isThisAudioPlaying) "Воспроизведение записи…" else "Оригинальная голосовая запись",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = DuroTextPrimary
+                                color = AppTheme.colors.textPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             val durationLabel = if (digest.speechSeconds > 0) {
@@ -304,7 +304,7 @@ fun JournalDetailSheet(
                             Text(
                                 text = durationLabel,
                                 fontSize = 11.sp,
-                                color = DuroTextSecondary
+                                color = AppTheme.colors.textSecondary
                             )
                         }
 
@@ -316,7 +316,7 @@ fun JournalDetailSheet(
                                 ),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DuroJournalLavender
+                                color = AppTheme.colors.accent
                             )
                         }
                     }
@@ -327,9 +327,9 @@ fun JournalDetailSheet(
             if (digest.gist.isNotBlank()) {
                 item {
                     Surface(
-                        color = DuroSurfaceElevated,
+                        color = AppTheme.colors.surfaceElevated,
                         shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DuroJournalLavender.copy(alpha = 0.35f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.accent.copy(alpha = 0.35f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -340,14 +340,14 @@ fun JournalDetailSheet(
                                 modifier = Modifier
                                     .width(4.dp)
                                     .height(56.dp)
-                                    .background(DuroJournalLavender, RoundedCornerShape(2.dp))
+                                    .background(AppTheme.colors.accent, RoundedCornerShape(2.dp))
                             )
                             Column {
                                 Text(
                                     text = "СУТЬ (CORE INSIGHT)",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = DuroJournalLavender,
+                                    color = AppTheme.colors.accent,
                                     letterSpacing = 1.sp
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -356,7 +356,7 @@ fun JournalDetailSheet(
                                     fontSize = 15.sp,
                                     lineHeight = 23.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = DuroTextPrimary
+                                    color = AppTheme.colors.textPrimary
                                 )
                             }
                         }
@@ -371,15 +371,15 @@ fun JournalDetailSheet(
                         text = "Ключевые тезисы",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DuroTextPrimary
+                        color = AppTheme.colors.textPrimary
                     )
                 }
 
                 items(digest.keyPoints) { point ->
                     Surface(
-                        color = DuroSurface,
+                        color = AppTheme.colors.surface,
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -390,14 +390,14 @@ fun JournalDetailSheet(
                             Text(
                                 text = "◆",
                                 fontSize = 12.sp,
-                                color = DuroJournalLavender,
+                                color = AppTheme.colors.accent,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                             Text(
                                 text = point,
                                 fontSize = 14.sp,
                                 lineHeight = 21.sp,
-                                color = DuroTextPrimary
+                                color = AppTheme.colors.textPrimary
                             )
                         }
                     }
@@ -412,15 +412,15 @@ fun JournalDetailSheet(
                         text = "Принятые решения",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DuroTextPrimary
+                        color = AppTheme.colors.textPrimary
                     )
                 }
 
                 items(digest.decisions) { decision ->
                     Surface(
-                        color = DuroSurface,
+                        color = AppTheme.colors.surface,
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -432,13 +432,13 @@ fun JournalDetailSheet(
                                 text = "✓",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DuroLime
+                                color = AppTheme.colors.accent
                             )
                             Text(
                                 text = decision,
                                 fontSize = 14.sp,
                                 lineHeight = 21.sp,
-                                color = DuroTextPrimary
+                                color = AppTheme.colors.textPrimary
                             )
                         }
                     }
@@ -457,12 +457,12 @@ fun JournalDetailSheet(
                             text = "Действия из мысли",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroTextPrimary
+                            color = AppTheme.colors.textPrimary
                         )
                         Text(
                             text = "нажмите для создания задачи",
                             fontSize = 11.sp,
-                            color = DuroTextMuted
+                            color = AppTheme.colors.textMuted
                         )
                     }
                 }
@@ -470,11 +470,11 @@ fun JournalDetailSheet(
                 items(digest.nextSteps) { step ->
                     val isAdded = addedSteps.contains(step)
                     Surface(
-                        color = if (isAdded) DuroSurfaceElevated else DuroSurface,
+                        color = if (isAdded) AppTheme.colors.surfaceElevated else AppTheme.colors.surface,
                         shape = RoundedCornerShape(14.dp),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isAdded) DuroOrange.copy(alpha = 0.5f) else DuroBorder
+                            if (isAdded) AppTheme.colors.accent.copy(alpha = 0.5f) else AppTheme.colors.border
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -494,12 +494,12 @@ fun JournalDetailSheet(
                                     text = if (isAdded) "✓" else "→",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isAdded) DuroOrange else DuroTextMuted
+                                    color = if (isAdded) AppTheme.colors.accent else AppTheme.colors.textMuted
                                 )
                                 Text(
                                     text = step,
                                     fontSize = 13.sp,
-                                    color = if (isAdded) DuroOrange else DuroTextPrimary
+                                    color = if (isAdded) AppTheme.colors.accent else AppTheme.colors.textPrimary
                                 )
                             }
 
@@ -512,8 +512,8 @@ fun JournalDetailSheet(
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isAdded) DuroSurfaceElevated else DuroOrange,
-                                    contentColor = if (isAdded) DuroOrange else Color.White
+                                    containerColor = if (isAdded) AppTheme.colors.surfaceElevated else AppTheme.colors.accent,
+                                    contentColor = if (isAdded) AppTheme.colors.accent else AppTheme.colors.surface
                                 ),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
@@ -534,9 +534,9 @@ fun JournalDetailSheet(
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
                     Surface(
-                        color = DuroSurface,
+                        color = AppTheme.colors.surface,
                         shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { expandedTranscript = !expandedTranscript }
@@ -554,32 +554,32 @@ fun JournalDetailSheet(
                                     Icon(
                                         imageVector = if (expandedTranscript) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                         contentDescription = null,
-                                        tint = DuroTextSecondary,
+                                        tint = AppTheme.colors.textSecondary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
                                         text = "Полная расшифровка (Транскрипт)",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = DuroTextPrimary
+                                        color = AppTheme.colors.textPrimary
                                     )
                                 }
                                 Text(
                                     text = "${digest.transcript.split(' ').filter { it.isNotBlank() }.size} слов",
                                     fontSize = 11.sp,
-                                    color = DuroTextMuted
+                                    color = AppTheme.colors.textMuted
                                 )
                             }
 
                             AnimatedVisibility(visible = expandedTranscript) {
                                 Column(modifier = Modifier.padding(top = 10.dp)) {
-                                    HorizontalDivider(color = DuroBorder)
+                                    HorizontalDivider(color = AppTheme.colors.border)
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
                                         text = digest.transcript,
                                         fontSize = 13.sp,
                                         lineHeight = 20.sp,
-                                        color = DuroTextSecondary
+                                        color = AppTheme.colors.textSecondary
                                     )
                                 }
                             }
@@ -591,11 +591,11 @@ fun JournalDetailSheet(
             // Obsidian Export Hint & Quick Action
             item {
                 Surface(
-                    color = DuroSurfaceElevated,
+                    color = AppTheme.colors.surfaceElevated,
                     shape = RoundedCornerShape(12.dp),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (state.isObsidianConfigured) DuroJournalLavender.copy(alpha = 0.4f) else DuroBorder
+                        if (state.isObsidianConfigured) AppTheme.colors.accent.copy(alpha = 0.4f) else AppTheme.colors.border
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -622,7 +622,12 @@ fun JournalDetailSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "💎", fontSize = 18.sp)
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(id = com.voicehabit.tracker.R.drawable.ic_dairy_logo),
+                            contentDescription = null,
+                            tint = AppTheme.colors.accent,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (state.isObsidianConfigured) {
@@ -632,7 +637,7 @@ fun JournalDetailSheet(
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (state.isObsidianConfigured) DuroJournalLavender else DuroTextPrimary
+                                color = if (state.isObsidianConfigured) AppTheme.colors.accent else AppTheme.colors.textPrimary
                             )
                             Text(
                                 text = if (state.isObsidianConfigured) {
@@ -641,7 +646,7 @@ fun JournalDetailSheet(
                                     "Нажмите, чтобы скопировать Markdown и выбрать папку хранилища"
                                 },
                                 fontSize = 11.sp,
-                                color = DuroTextSecondary
+                                color = AppTheme.colors.textSecondary
                             )
                         }
                     }

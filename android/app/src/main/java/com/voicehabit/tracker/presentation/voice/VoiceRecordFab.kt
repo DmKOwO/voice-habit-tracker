@@ -96,9 +96,9 @@ private fun RecordingStatusPanel(
     val cancelInteractions = remember { MutableInteractionSource() }
 
     Surface(
-        color = DuroSurface,
+        color = AppTheme.colors.surface,
         shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
         shadowElevation = 12.dp,
         // Было width(280.dp): на тонком телефоне панель вылезала за край.
         // Теперь ширина — доля доступного места с верхним пределом.
@@ -121,7 +121,7 @@ private fun RecordingStatusPanel(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Отмена",
-                    tint = DuroRed,
+                    tint = AppTheme.colors.error,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -138,7 +138,7 @@ private fun RecordingStatusPanel(
                 text = "%02d:%02d".format(durationSeconds / 60, durationSeconds % 60),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = DuroTextPrimary
+                color = AppTheme.colors.textPrimary
             )
         }
     }
@@ -149,6 +149,7 @@ private fun VoiceWaveform(
     amplitude: Float,
     modifier: Modifier = Modifier
 ) {
+    val barColor = AppTheme.colors.accent
     Canvas(modifier = modifier) {
         val barWidth = 3.dp.toPx()
         val spacing = 3.dp.toPx()
@@ -162,7 +163,7 @@ private fun VoiceWaveform(
                 .coerceIn(4f, size.height)
 
             drawLine(
-                color = DuroOrange,
+                color = barColor,
                 start = Offset(x, midY - height / 2),
                 end = Offset(x, midY + height / 2),
                 strokeWidth = barWidth
@@ -194,7 +195,9 @@ private fun PulsingRecordControl(
         1f
     }
 
-    val glowColor = if (isRecording) DuroRed else DuroOrange
+    val accent = AppTheme.colors.accent
+    val errorColor = AppTheme.colors.error
+    val glowColor = if (isRecording) errorColor else accent
 
     Box(
         contentAlignment = Alignment.Center,
@@ -235,9 +238,9 @@ private fun PulsingRecordControl(
                 .clip(CircleShape)
                 .background(
                     if (isRecording) {
-                        Brush.linearGradient(listOf(DuroRed, Color(0xFFDC2626)))
+                        Brush.linearGradient(listOf(errorColor, Color(0xFFDC2626)))
                     } else {
-                        Brush.linearGradient(listOf(DuroOrange, Color(0xFFFF854D)))
+                        Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.85f)))
                     }
                 )
                 .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
@@ -258,7 +261,7 @@ private fun PulsingRecordControl(
                 Icon(
                     imageVector = if (recording) Icons.Default.Stop else Icons.Default.Mic,
                     contentDescription = if (recording) "Остановить запись" else "Начать голосовой ввод",
-                    tint = Color.White,
+                    tint = if (recording) Color.White else AppTheme.colors.surface,
                     modifier = Modifier.size(30.dp)
                 )
             }

@@ -1,39 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_voice_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_widget_dark"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="8dp">
 
     <FrameLayout
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginBottom="8dp"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center"
         android:background="@drawable/bg_widget_mic_btn">
 
         <ImageView
-            android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_widget_mic" />
+            android:src="@drawable/ic_mic_minimal" />
     </FrameLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Быстрая запись"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="AI Whisper + Gemini"
-        android:textColor="#FF6B35"
-        android:textSize="10sp" />
-
-</LinearLayout>
+</FrameLayout>

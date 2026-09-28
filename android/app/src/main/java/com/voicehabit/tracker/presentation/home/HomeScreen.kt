@@ -175,11 +175,11 @@ fun HomeScreen(
                         .fillMaxSize()
                         .statusBarsPadding()
                 ) {
-                    // CALM TOP BAR: Minimalist Asterisk Logo + Progress + Profile Icon
+                    // CALM TOP BAR: Minimalist dairy Logo + Progress + Profile Icon
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -188,14 +188,21 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                DuroAsterisk(size = 20.dp, color = DuroOrange)
+                                DairyLogo(size = 18.dp, color = AppTheme.colors.accent)
+                                Text(
+                                    text = "dairy",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTheme.colors.textPrimary,
+                                    letterSpacing = 0.5.sp
+                                )
                             }
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = "Reached ${state.yearProgressPercentage}% of 2026",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = DuroTextSecondary
+                                color = AppTheme.colors.textSecondary
                             )
                         }
 
@@ -252,13 +259,25 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.PersonOutline,
                                         contentDescription = "Профиль и система",
-                                        tint = if (!state.hasApiKeysConfigured) DuroOrange else DuroTextPrimary,
+                                        tint = if (!state.hasApiKeysConfigured) DairyWarning else AppTheme.colors.textPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
                         }
                     }
+
+                    // Thin Elegant Year Progress Bar (2dp)
+                    LinearProgressIndicator(
+                        progress = { (state.yearProgressPercentage / 100f).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 2.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp)),
+                        color = AppTheme.colors.accent,
+                        trackColor = AppTheme.colors.surfaceElevated
+                    )
 
                     // OTA Update banner
                     AnimatedVisibility(
@@ -303,8 +322,8 @@ fun HomeScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = DuroOrange, strokeWidth = 2.dp)
-                                        Text(text = "Загрузка обновления...", fontSize = 12.sp, color = DuroTextSecondary)
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = AppTheme.colors.accent, strokeWidth = 2.dp)
+                                        Text(text = "Загрузка обновления...", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                     }
                                 }
                             }
@@ -315,9 +334,9 @@ fun HomeScreen(
                     // Info banner for voice / AI processing
                     if (state.infoMessage != null) {
                         Surface(
-                            color = DuroSurface,
+                            color = AppTheme.colors.surface,
                             shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 20.dp, vertical = 4.dp)
@@ -330,14 +349,14 @@ fun HomeScreen(
                                 if (state.isLoading) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(14.dp),
-                                        color = DuroOrange,
+                                        color = AppTheme.colors.accent,
                                         strokeWidth = 2.dp
                                     )
                                 }
                                 Text(
                                     text = state.infoMessage ?: "",
                                     fontSize = 12.sp,
-                                    color = DuroTextSecondary
+                                    color = AppTheme.colors.textSecondary
                                 )
                             }
                         }
@@ -590,13 +609,13 @@ fun RhythmView(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(if (searchExpanded) DuroOrange.copy(alpha = 0.15f) else Color(0xFF181822)),
+                            .background(if (searchExpanded) AppTheme.colors.accent.copy(alpha = 0.15f) else AppTheme.colors.surfaceElevated),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Поиск",
-                            tint = if (searchExpanded) DuroOrange else DuroTextPrimary,
+                            tint = if (searchExpanded) AppTheme.colors.accent else AppTheme.colors.textPrimary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -617,13 +636,13 @@ fun RhythmView(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF181822)),
+                            .background(AppTheme.colors.surfaceElevated),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Создать привычку или задачу",
-                            tint = DuroTextPrimary,
+                            tint = AppTheme.colors.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -655,7 +674,7 @@ fun RhythmView(
                         text = tab,
                         fontSize = 14.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                        color = if (isSelected) DuroOrange else DuroTabInactive
+                        color = if (isSelected) AppTheme.colors.accent else AppTheme.colors.textMuted
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     if (isSelected) {
@@ -664,7 +683,7 @@ fun RhythmView(
                                 .width(16.dp)
                                 .height(2.5.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(DuroOrange)
+                                .background(AppTheme.colors.accent)
                         )
                     } else {
                         Spacer(modifier = Modifier.height(2.5.dp))
@@ -683,20 +702,20 @@ fun RhythmView(
                 OutlinedTextField(
                     value = state.searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("Поиск задач и дел…", fontSize = 13.sp, color = DuroTextMuted) },
+                    placeholder = { Text("Поиск задач и дел…", fontSize = 13.sp, color = AppTheme.colors.textMuted) },
                     trailingIcon = {
                         if (state.searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Очистить", tint = DuroTextMuted)
+                                Icon(Icons.Default.Close, contentDescription = "Очистить", tint = AppTheme.colors.textMuted)
                             }
                         }
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DuroOrange,
-                        unfocusedBorderColor = DuroBorder,
-                        focusedTextColor = DuroTextPrimary,
-                        unfocusedTextColor = DuroTextPrimary
+                        focusedBorderColor = AppTheme.colors.accent,
+                        unfocusedBorderColor = AppTheme.colors.border,
+                        focusedTextColor = AppTheme.colors.textPrimary,
+                        unfocusedTextColor = AppTheme.colors.textPrimary
                     ),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()

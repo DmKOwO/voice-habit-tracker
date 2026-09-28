@@ -89,12 +89,11 @@ class DuroHabitCardWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.card_root, appPendingIntent)
 
                 if (habit == null) {
-                    views.setTextViewText(R.id.tv_card_category, "DURO")
+                    views.setTextViewText(R.id.tv_card_category, "DAIRY")
                     views.setTextViewText(R.id.tv_card_title, "No habits yet")
                     views.setViewVisibility(R.id.iv_card_grid, View.GONE)
                     views.setViewVisibility(R.id.layout_card_streak, View.GONE)
                     views.setViewVisibility(R.id.layout_card_today, View.GONE)
-                    views.setTextViewText(R.id.tv_card_quote, "Tap + in app")
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                     return@launch
                 }
@@ -106,7 +105,7 @@ class DuroHabitCardWidgetProvider : AppWidgetProvider() {
                 val accentColorInt = try {
                     android.graphics.Color.parseColor(habit.colorHex)
                 } catch (e: Exception) {
-                    android.graphics.Color.parseColor("#FF6B35")
+                    android.graphics.Color.parseColor("#F4F1EA")
                 }
 
                 // 2. Quick Mic Intent (tap mic -> immediately record speech)
@@ -141,16 +140,11 @@ class DuroHabitCardWidgetProvider : AppWidgetProvider() {
                 )
                 views.setOnClickPendingIntent(R.id.btn_card_check, checkPendingIntent)
 
-                // 4. Check State (Frame 26: "Checked!")
+                // 4. Check State
                 if (habit.isCompletedToday) {
                     views.setImageViewResource(R.id.btn_card_check, R.drawable.ic_widget_circle_done)
-                    views.setViewVisibility(R.id.tv_card_checked_badge, View.VISIBLE)
-                    views.setViewVisibility(R.id.tv_card_quote, View.GONE)
                 } else {
                     views.setImageViewResource(R.id.btn_card_check, R.drawable.ic_widget_circle_empty)
-                    views.setViewVisibility(R.id.tv_card_checked_badge, View.GONE)
-                    views.setViewVisibility(R.id.tv_card_quote, View.VISIBLE)
-                    views.setTextViewText(R.id.tv_card_quote, habit.quote.ifEmpty { "Stay\nHungry" })
                 }
 
                 // 5. Visualization rendering
@@ -229,7 +223,7 @@ class DuroHabitCardWidgetProvider : AppWidgetProvider() {
                         paint.alpha = 210
                         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
                     } else {
-                        paint.color = android.graphics.Color.parseColor("#2A2A38")
+                        paint.color = android.graphics.Color.parseColor("#22222A")
                         paint.alpha = 255
                         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
                     }
@@ -268,7 +262,7 @@ class DuroHabitCardWidgetProvider : AppWidgetProvider() {
                     paint.color = accentColor
                     paint.alpha = 240
                 } else {
-                    paint.color = android.graphics.Color.parseColor("#2A2A38")
+                    paint.color = android.graphics.Color.parseColor("#22222A")
                     paint.alpha = 255
                 }
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)

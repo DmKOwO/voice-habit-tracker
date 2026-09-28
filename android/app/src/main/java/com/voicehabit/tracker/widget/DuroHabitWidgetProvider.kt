@@ -80,7 +80,7 @@ class DuroHabitWidgetProvider : AppWidgetProvider() {
                         val h1 = habits[0]
                         views.setViewVisibility(R.id.layout_habit_1, View.VISIBLE)
                         views.setTextViewText(R.id.tv_habit_1_title, h1.title)
-                        views.setTextViewText(R.id.tv_habit_1_streak, "${h1.category} • 🔥 ${h1.currentStreak} Streaks")
+                        views.setTextViewText(R.id.tv_habit_1_streak, "${h1.category} • ${h1.currentStreak} дн.")
                         views.setOnClickPendingIntent(R.id.layout_habit_1, appPendingIntent)
                         
                         val checkIntent1 = Intent(context, HabitWidgetReceiver::class.java).apply {
@@ -108,7 +108,7 @@ class DuroHabitWidgetProvider : AppWidgetProvider() {
                         val h2 = habits[1]
                         views.setViewVisibility(R.id.layout_habit_2, View.VISIBLE)
                         views.setTextViewText(R.id.tv_habit_2_title, h2.title)
-                        views.setTextViewText(R.id.tv_habit_2_streak, "${h2.category} • 🔥 ${h2.currentStreak} Streaks")
+                        views.setTextViewText(R.id.tv_habit_2_streak, "${h2.category} • ${h2.currentStreak} дн.")
                         views.setOnClickPendingIntent(R.id.layout_habit_2, appPendingIntent)
 
                         val checkIntent2 = Intent(context, HabitWidgetReceiver::class.java).apply {
@@ -136,7 +136,7 @@ class DuroHabitWidgetProvider : AppWidgetProvider() {
                         val h3 = habits[2]
                         views.setViewVisibility(R.id.layout_habit_3, View.VISIBLE)
                         views.setTextViewText(R.id.tv_habit_3_title, h3.title)
-                        views.setTextViewText(R.id.tv_habit_3_streak, "${h3.category} • 🔥 ${h3.currentStreak} Streaks")
+                        views.setTextViewText(R.id.tv_habit_3_streak, "${h3.category} • ${h3.currentStreak} дн.")
                         views.setOnClickPendingIntent(R.id.layout_habit_3, appPendingIntent)
 
                         val checkIntent3 = Intent(context, HabitWidgetReceiver::class.java).apply {

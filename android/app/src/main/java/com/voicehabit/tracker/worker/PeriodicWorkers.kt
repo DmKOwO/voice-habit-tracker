@@ -69,7 +69,7 @@ class WeeklyReviewWorker(context: Context, params: WorkerParameters) : Coroutine
             if (!Notify.inQuietHours(container.settings)) {
                 Notify.show(
                     applicationContext, Notify.CHANNEL_DIGEST, 9101,
-                    "📊 Итог недели",
+                    "Итог недели",
                     "Привычек выполнено сегодня: $doneToday из ${habits.size}. Лучший стрик: $best. Открытых задач: $openCount. Откройте вечерний разбор!"
                 )
             }

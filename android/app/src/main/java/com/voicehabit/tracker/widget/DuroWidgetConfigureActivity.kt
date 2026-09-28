@@ -155,7 +155,7 @@ class DuroWidgetConfigureActivity : ComponentActivity() {
                                                 color = DuroTextPrimary
                                             )
                                             Text(
-                                                text = "${habit.category} • ${habit.displayType} • 🔥 ${habit.currentStreak}",
+                                                text = "${habit.category} • ${habit.displayType} • ${habit.currentStreak} дн.",
                                                 fontSize = 12.sp,
                                                 color = DuroTextSecondary
                                             )

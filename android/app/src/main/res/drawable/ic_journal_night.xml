@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Crescent Moon Merged with Open Journal Pages -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4,19 C6,17.5 9,17.5 12,19 C15,17.5 18,17.5 20,19 L20,7 C18,5.5 15,5.5 12,7 C9,5.5 6,5.5 4,7 Z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round"
+        android:pathData="M12,7 L12,19" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2 C10.5,2 9.2,2.8 8.5,4 C10.5,4.3 12,6 12,8.2 C12,9.3 11.5,10.2 10.8,10.8 C11.2,10.9 11.6,11 12,11 C14.5,11 16.5,9 16.5,6.5 C16.5,4 14.5,2 12,2 Z" />
+</vector>

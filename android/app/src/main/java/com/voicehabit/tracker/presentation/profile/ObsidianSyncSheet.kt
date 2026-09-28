@@ -47,10 +47,10 @@ fun ObsidianSyncSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = DuroSurface,
+        containerColor = AppTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         dragHandle = {
-            BottomSheetDefaults.DragHandle(color = DuroBorder)
+            BottomSheetDefaults.DragHandle(color = AppTheme.colors.border)
         }
     ) {
         Column(
@@ -67,12 +67,17 @@ fun ObsidianSyncSheet(
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Surface(
-                    color = DuroJournalLavender.copy(alpha = 0.18f),
+                    color = AppTheme.colors.accent.copy(alpha = 0.18f),
                     shape = CircleShape,
                     modifier = Modifier.size(50.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(text = "💎", fontSize = 24.sp)
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(id = com.voicehabit.tracker.R.drawable.ic_dairy_logo),
+                            contentDescription = null,
+                            tint = AppTheme.colors.accent,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
 
@@ -81,17 +86,17 @@ fun ObsidianSyncSheet(
                         text = "Obsidian Vault",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = DuroTextPrimary
+                        color = AppTheme.colors.textPrimary
                     )
                     Text(
                         text = "Local-First синхронизация мыслей и задач",
                         fontSize = 12.sp,
-                        color = DuroTextSecondary
+                        color = AppTheme.colors.textSecondary
                     )
                 }
             }
 
-            HorizontalDivider(color = DuroBorder)
+            HorizontalDivider(color = AppTheme.colors.border)
 
             // Vault Status Card
             Surface(

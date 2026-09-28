@@ -125,6 +125,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val uiState by viewModel.state.collectAsState()
             VoiceHabitTrackerTheme(
+                preset = uiState.themePreset,
                 amoled = uiState.amoledTheme,
                 fontScale = uiState.fontScale
             ) {

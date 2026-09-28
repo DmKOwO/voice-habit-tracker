@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Minimal Streak Spark -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M8,1 C8,4.8 4.8,8 1,8 C4.8,8 8,11.2 8,15 C8,11.2 11.2,8 15,8 C11.2,8 8,4.8 8,1 Z" />
+</vector>

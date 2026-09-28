@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/card_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_duro_squircle"
+    android:orientation="vertical"
     android:padding="14dp">
 
     <!-- Top Row: Category on left, Mic + Check on right -->
@@ -11,7 +12,6 @@
         android:id="@+id/card_top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -20,100 +20,95 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="FITNESS"
-            android:textColor="#E0FFFFFF"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="HABIT"
+            android:textColor="#A8A5A0"
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- Quick Mic button to start recording freeform speech immediately -->
+        <!-- Quick Mic button -->
         <FrameLayout
             android:id="@+id/btn_card_mic"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_widget_mic_btn"
-            android:contentDescription="Начать голосовую запись">
+            android:background="@drawable/bg_widget_mic_btn">
 
             <ImageView
-                android:layout_width="15dp"
-                android:layout_height="15dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_widget_mic" />
+                android:src="@drawable/ic_mic_minimal" />
         </FrameLayout>
 
         <!-- 1-Tap Check/Complete Button -->
         <ImageView
             android:id="@+id/btn_card_check"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:contentDescription="Check Habit"
             android:src="@drawable/ic_widget_circle_empty" />
     </LinearLayout>
 
-    <!-- Habit Title (Middle) -->
+    <!-- Habit Title -->
     <TextView
         android:id="@+id/tv_card_title"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/card_top_bar"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="8dp"
         android:ellipsize="end"
         android:maxLines="1"
         android:text="Workout"
-        android:textColor="#FFFFFF"
-        android:textSize="17sp"
+        android:textColor="#F4F1EA"
+        android:textSize="16sp"
         android:textStyle="bold" />
 
-    <!-- Bottom Container: Visualization on left, Quote / Checked badge on right -->
-    <LinearLayout
-        android:id="@+id/card_bottom_row"
+    <!-- Center/Bottom Visualization -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_below="@id/tv_card_title"
-        android:layout_marginTop="6dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
-        <!-- Visualization Slot 1: Heatmap Grid / Bar Graph Bitmap -->
         <ImageView
             android:id="@+id/iv_card_grid"
-            android:layout_width="92dp"
-            android:layout_height="52dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:scaleType="fitCenter"
             android:visibility="visible" />
 
-        <!-- Visualization Slot 2: Flame Streaks -->
         <LinearLayout
             android:id="@+id/layout_card_streak"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:layout_gravity="center"
+            android:gravity="center"
             android:orientation="horizontal"
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@drawable/ic_flame" />
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_achievements_spark" />
 
             <TextView
                 android:id="@+id/tv_card_streak_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="6dp"
                 android:text="13 Streaks"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
+                android:textColor="#F4F1EA"
+                android:textSize="15sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Visualization Slot 3: Daily Check Circle -->
         <LinearLayout
             android:id="@+id/layout_card_today"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:layout_gravity="center"
+            android:gravity="center"
             android:orientation="horizontal"
             android:visibility="gone">
 
@@ -126,46 +121,25 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="Today"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Right Side: Motivational Quote or Checked Status (Frames 24 & 26) -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="end"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_card_checked_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_duro_checked_badge"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:text="Checked! ✓"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tv_card_quote"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="end"
-                android:maxLines="2"
-                android:text="Stay\nHungry"
-                android:textColor="#FFFFFF"
+                android:layout_marginStart="8dp"
+                android:text="Completed"
+                android:textColor="#F4F1EA"
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>
-    </LinearLayout>
+    </FrameLayout>
 
-</RelativeLayout>
+    <!-- Hidden compatibility placeholders -->
+    <TextView
+        android:id="@+id/tv_card_quote"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tv_card_checked_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+</LinearLayout>

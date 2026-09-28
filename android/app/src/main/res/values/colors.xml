@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Тот же тёмный фон, что и DuroBackground в presentation/theme/Color.kt -->
-    <color name="duro_background">#0C0C0E</color>
+    <!-- Нейтральный матовый тёмный фон Noir & Ink -->
+    <color name="dairy_background">#0F0F11</color>
+    <color name="duro_background">#0F0F11</color>
 </resources>

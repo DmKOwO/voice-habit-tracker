@@ -42,9 +42,9 @@ fun DuroBottomNavigation(
     val haptic = LocalHapticFeedback.current
 
     Surface(
-        color = Color(0xFF12121A),
+        color = AppTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
         shadowElevation = 12.dp,
         modifier = modifier.fillMaxWidth()
     ) {
@@ -57,11 +57,7 @@ fun DuroBottomNavigation(
         ) {
             MainTab.entries.forEach { tab ->
                 val isSelected = tab == selectedTab
-                val accentColor = when (tab) {
-                    MainTab.JOURNAL -> DuroJournalLavender
-                    MainTab.OVERVIEW -> DuroOrange
-                    MainTab.RHYTHM -> DuroOrange
-                }
+                val accentColor = AppTheme.colors.accent
 
                 val icon: ImageVector = when (tab) {
                     MainTab.RHYTHM -> Icons.Default.Spa
@@ -76,7 +72,7 @@ fun DuroBottomNavigation(
                 )
 
                 val animatedContentColor by animateColorAsState(
-                    targetValue = if (isSelected) accentColor else DuroTextMuted,
+                    targetValue = if (isSelected) accentColor else AppTheme.colors.textMuted,
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                     label = "TabContentAnimation"
                 )

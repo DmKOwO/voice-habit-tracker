@@ -25,14 +25,14 @@
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:layout_marginEnd="6dp"
-                android:src="@drawable/ic_duro_asterisk" />
+                android:src="@drawable/ic_dairy_logo" />
 
             <TextView
                 android:id="@+id/tv_widget_year_progress"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Reached 74% of 2026"
-                android:textColor="#9E9EA7"
+                android:textColor="#A8A5A0"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -48,10 +48,10 @@
             android:contentDescription="Начать голосовую запись">
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_widget_mic" />
+                android:src="@drawable/ic_mic_minimal" />
         </FrameLayout>
     </RelativeLayout>
 

@@ -151,6 +151,7 @@ data class HomeState(
     // Празднование закрытого дня (G31)
     val celebrateAllDone: Boolean = false,
     // Тема (F19): читается из настроек, пересоздаёт палитру.
+    val themePreset: com.voicehabit.tracker.presentation.theme.AppThemePreset = com.voicehabit.tracker.presentation.theme.AppThemePreset.NOIR_INK,
     val amoledTheme: Boolean = false,
     val fontScale: Float = 1.0f,
     val appLanguage: String = "ru",

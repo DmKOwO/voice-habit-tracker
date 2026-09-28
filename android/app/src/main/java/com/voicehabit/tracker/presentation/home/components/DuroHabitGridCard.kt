@@ -48,20 +48,21 @@ fun DuroHabitGridCard(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     heroKey: String? = null
 ) {
+    val defaultAccent = AppTheme.colors.accent
     val accentColor = try {
         Color(android.graphics.Color.parseColor(habit.colorHex))
     } catch (e: Exception) {
-        DuroOrange
+        defaultAccent
     }
 
     val animatedBgColor by animateColorAsState(
-        targetValue = if (habit.isCompletedToday) accentColor.copy(alpha = 0.16f) else Color(0xFF141419),
+        targetValue = if (habit.isCompletedToday) accentColor.copy(alpha = 0.16f) else AppTheme.colors.surface,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "bgColor"
     )
 
     val animatedBorderColor by animateColorAsState(
-        targetValue = if (habit.isCompletedToday) accentColor.copy(alpha = 0.6f) else DuroBorder,
+        targetValue = if (habit.isCompletedToday) accentColor.copy(alpha = 0.6f) else AppTheme.colors.border,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "borderColor"
     )
@@ -105,7 +106,7 @@ fun DuroHabitGridCard(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Выполнено",
-                            tint = Color.White,
+                            tint = AppTheme.colors.surface,
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -113,7 +114,7 @@ fun DuroHabitGridCard(
             }
             when (habit.displayType.uppercase()) {
                 "STREAKS" -> {
-                    // Flame + Streak count
+                    // Streak marker + Streak count
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -126,15 +127,15 @@ fun DuroHabitGridCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = "Streaks",
+                                painter = androidx.compose.ui.res.painterResource(id = com.voicehabit.tracker.R.drawable.ic_streak_dot),
+                                contentDescription = "Стрик",
                                 tint = accentColor,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "${habit.currentStreak} Streaks",
+                            text = "${habit.currentStreak} дн.",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = accentColor,
@@ -173,16 +174,16 @@ fun DuroHabitGridCard(
                                                 when {
                                                     isToday && habit.isCompletedToday -> accentColor
                                                     isFilled -> accentColor.copy(alpha = 0.85f)
-                                                    else -> Color(0xFF262633)
-                                                }
-                                            )
-                                            .then(
-                                                if (isToday && !habit.isCompletedToday) {
-                                                    Modifier.border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(2.5.dp))
-                                                } else Modifier
-                                            )
-                                    )
-                                }
+                                                    else -> AppTheme.colors.surfaceElevated
+                                                 }
+                                             )
+                                             .then(
+                                                 if (isToday && !habit.isCompletedToday) {
+                                                     Modifier.border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(2.5.dp))
+                                                 } else Modifier
+                                             )
+                                     )
+                                 }
                             }
                         }
                     }
@@ -215,14 +216,14 @@ fun DuroHabitGridCard(
                                         .height(if (done) 42.dp else 14.dp)
                                         .clip(RoundedCornerShape(3.dp))
                                         .background(
-                                            if (done) accentColor else Color(0xFF282836)
+                                            if (done) accentColor else AppTheme.colors.surfaceElevated
                                         )
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = dayLetter,
                                     fontSize = 8.sp,
-                                    color = DuroTextMuted
+                                    color = AppTheme.colors.textMuted
                                 )
                             }
                         }
@@ -238,14 +239,14 @@ fun DuroHabitGridCard(
                             progress = { (habit.completionPercentage / 100f).coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxSize(),
                             color = accentColor,
-                            trackColor = Color(0xFF282835),
+                            trackColor = AppTheme.colors.surfaceElevated,
                             strokeWidth = 4.dp
                         )
                         Text(
                             text = "${habit.completionPercentage}%",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroTextPrimary
+                            color = AppTheme.colors.textPrimary
                         )
                     }
                 }
@@ -260,7 +261,7 @@ fun DuroHabitGridCard(
                                 .size(50.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (habit.isCompletedToday) accentColor else Color(0xFF1E1E28)
+                                    if (habit.isCompletedToday) accentColor else AppTheme.colors.surfaceElevated
                                 )
                                 .border(
                                     width = if (habit.isCompletedToday) 0.dp else 1.5.dp,
@@ -282,7 +283,7 @@ fun DuroHabitGridCard(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Done",
-                                        tint = Color.White,
+                                        tint = AppTheme.colors.surface,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
@@ -293,7 +294,7 @@ fun DuroHabitGridCard(
                             text = "Today",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (habit.isCompletedToday) accentColor else DuroTextMuted
+                            color = if (habit.isCompletedToday) accentColor else AppTheme.colors.textMuted
                         )
                     }
                 }
@@ -320,14 +321,14 @@ fun DuroHabitGridCard(
                     text = habit.title,
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp),
                     fontWeight = FontWeight.Bold,
-                    color = DuroTextPrimary,
+                    color = AppTheme.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = habit.category,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = DuroTextSecondary
+                        color = AppTheme.colors.textSecondary
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -338,7 +339,7 @@ fun DuroHabitGridCard(
                 text = if (habit.completionPercentage > 0) "${habit.completionPercentage}%" else "— %",
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
-                    color = DuroTextMuted
+                    color = AppTheme.colors.textMuted
                 ),
                 maxLines = 1,
                 softWrap = false

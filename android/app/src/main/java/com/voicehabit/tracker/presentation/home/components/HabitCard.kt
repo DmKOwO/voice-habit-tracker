@@ -44,14 +44,15 @@ fun HabitCard(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     heroKey: String? = null
 ) {
+    val defaultAccent = AppTheme.colors.accent
     val accentColor = try {
         Color(android.graphics.Color.parseColor(habit.colorHex))
     } catch (e: Exception) {
-        DuroOrange
+        defaultAccent
     }
 
     val animatedBg by animateColorAsState(
-        targetValue = if (habit.isCompletedToday) accentColor.copy(alpha = 0.12f) else DuroSurface,
+        targetValue = if (habit.isCompletedToday) accentColor.copy(alpha = 0.12f) else AppTheme.colors.surface,
         animationSpec = DuroColorSpring,
         label = "bg"
     )
@@ -60,7 +61,7 @@ fun HabitCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .border(1.dp, if (habit.isCompletedToday) accentColor.copy(0.4f) else DuroBorder.copy(alpha = 0.72f), RoundedCornerShape(18.dp))
+            .border(1.dp, if (habit.isCompletedToday) accentColor.copy(0.4f) else AppTheme.colors.border.copy(alpha = 0.72f), RoundedCornerShape(18.dp))
             .duroPressable(onClick = onCardClick),
         colors = CardDefaults.cardColors(containerColor = animatedBg)
     ) {
@@ -82,11 +83,11 @@ fun HabitCard(
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(
-                            if (habit.isCompletedToday) accentColor else Color(0xFF1E1E28)
+                            if (habit.isCompletedToday) accentColor else AppTheme.colors.surfaceElevated
                         )
                         .border(
                             width = if (habit.isCompletedToday) 0.dp else 1.5.dp,
-                            color = if (habit.isCompletedToday) Color.Transparent else DuroBorder,
+                            color = if (habit.isCompletedToday) Color.Transparent else AppTheme.colors.border,
                             shape = CircleShape
                         )
                         .duroPressable(
@@ -107,7 +108,7 @@ fun HabitCard(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Выполнено",
-                                tint = Color.White,
+                                tint = AppTheme.colors.surface,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -127,7 +128,7 @@ fun HabitCard(
                         text = habit.title,
                         style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
                         fontWeight = FontWeight.Bold,
-                        color = DuroTextPrimary,
+                        color = AppTheme.colors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         softWrap = false
@@ -140,7 +141,7 @@ fun HabitCard(
                         Text(
                             text = habit.category,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                color = DuroTextSecondary
+                                color = AppTheme.colors.textSecondary
                             ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -150,16 +151,16 @@ fun HabitCard(
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                color = DuroTextMuted
+                                color = AppTheme.colors.textMuted
                             ),
                             maxLines = 1,
                             softWrap = false
                         )
                         Text(
-                            text = "🔥 ${habit.currentStreak} d.",
+                            text = "${habit.currentStreak} дн.",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = DuroOrange
+                                color = AppTheme.colors.accent
                             ),
                             maxLines = 1,
                             softWrap = false
@@ -173,7 +174,7 @@ fun HabitCard(
                 Text(
                     text = habit.quote,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = DuroTextMuted
+                        color = AppTheme.colors.textMuted
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

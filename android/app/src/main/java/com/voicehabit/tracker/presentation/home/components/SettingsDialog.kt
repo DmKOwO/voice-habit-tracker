@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -59,9 +60,9 @@ fun SettingsDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            color = Color(0xFF121218),
+            color = AppTheme.colors.surface,
             shape = RoundedCornerShape(24.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
@@ -81,21 +82,21 @@ fun SettingsDialog(
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = null,
-                        tint = DuroOrange,
+                        tint = AppTheme.colors.accent,
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
                         text = "Настройки ИИ и виджетов",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DuroTextPrimary
+                        color = AppTheme.colors.textPrimary
                     )
                 }
 
                 Text(
                     text = "Для работы распознавания речи прямо с телефона (на 4G / Wi-Fi без ПК) вставьте ваши бесплатные ключи API:",
                     fontSize = 12.sp,
-                    color = DuroTextSecondary,
+                    color = AppTheme.colors.textSecondary,
                     lineHeight = 16.sp
                 )
 
@@ -103,10 +104,10 @@ fun SettingsDialog(
                 // свои значения в полях ниже их перекроют.
                 if (settingsManager.isUsingBundledKeys) {
                     Text(
-                        text = "✅ Встроенные ключи активны — ИИ работает из коробки. Свои ключи вводить не нужно.",
+                        text = "Встроенные ключи активны — ИИ работает из коробки. Свои ключи вводить не нужно.",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = DuroLime,
+                        color = AppTheme.colors.accent,
                         lineHeight = 16.sp
                     )
                 }
@@ -118,7 +119,7 @@ fun SettingsDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Groq API Key (Whisper Turbo STT):", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DuroTextPrimary, modifier = Modifier.weight(1f))
+                        Text("Groq API Key (Whisper Turbo STT):", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AppTheme.colors.textPrimary, modifier = Modifier.weight(1f))
                         TextButton(
                             onClick = {
                                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -131,21 +132,21 @@ fun SettingsDialog(
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                             modifier = Modifier.wrapContentWidth()
                         ) {
-                            Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp), tint = DuroOrange)
+                            Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppTheme.colors.accent)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Вставить", fontSize = 11.sp, color = DuroOrange, maxLines = 1, softWrap = false)
+                            Text("Вставить", fontSize = 11.sp, color = AppTheme.colors.accent, maxLines = 1, softWrap = false)
                         }
                     }
                     OutlinedTextField(
                         value = groqKey,
                         onValueChange = { groqKey = it },
-                        placeholder = { Text("gsk_...", fontSize = 12.sp, color = DuroTextMuted) },
+                        placeholder = { Text("gsk_...", fontSize = 12.sp, color = AppTheme.colors.textMuted) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = DuroOrange,
-                            unfocusedBorderColor = DuroBorder,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedBorderColor = AppTheme.colors.accent,
+                            unfocusedBorderColor = AppTheme.colors.border,
+                            focusedTextColor = AppTheme.colors.textPrimary,
+                            unfocusedTextColor = AppTheme.colors.textPrimary
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -298,21 +299,21 @@ fun SettingsDialog(
                     onComplete = { githubUpdateController.installDownloaded() }
                 )
 
-                HorizontalDivider(color = DuroBorder)
+                HorizontalDivider(color = AppTheme.colors.border)
 
                 // 3. WIDGET PINNING SECTION
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Widgets, contentDescription = null, tint = DuroPurple, modifier = Modifier.size(20.dp))
-                    Text("Виджеты на рабочий стол", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DuroTextPrimary)
+                    Icon(Icons.Default.Widgets, contentDescription = null, tint = AppTheme.colors.accent, modifier = Modifier.size(20.dp))
+                    Text("Виджеты на рабочий стол", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                 }
 
                 Text(
                     text = "Нажмите кнопку ниже, чтобы система добавила виджет прямо на ваш экран:",
                     fontSize = 12.sp,
-                    color = DuroTextSecondary
+                    color = AppTheme.colors.textSecondary
                 )
 
                 // Pin Card 2x2
@@ -321,9 +322,9 @@ fun SettingsDialog(
                         WidgetPinHelper.pinHabitCardWidget(context)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppTheme.colors.textPrimary)
                 ) {
-                    Text("📌 Закрепить карточку 2x2 с хитмапом", fontSize = 12.sp)
+                    Text("Закрепить карточку 2x2 с хитмапом", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
@@ -331,7 +332,7 @@ fun SettingsDialog(
                         WidgetPinHelper.pinOverviewWidget(context)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppTheme.colors.textPrimary)
                 ) {
                     Text("Закрепить список привычек 4x2", fontSize = 12.sp)
                 }
@@ -342,15 +343,80 @@ fun SettingsDialog(
                         WidgetPinHelper.pinVoiceWidget(context)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppTheme.colors.textPrimary)
                 ) {
-                    Text("🎙 Закрепить микрофон быстрой записи (1x1)", fontSize = 12.sp)
+                    Text("Закрепить микрофон быстрой записи (1x1)", fontSize = 12.sp)
                 }
 
-                HorizontalDivider(color = DuroBorder)
+                HorizontalDivider(color = AppTheme.colors.border)
 
                 // Внешний вид (F19)
                 SettingsSectionTitle("Внешний вид")
+
+                Text(
+                    text = "Тема оформления",
+                    fontSize = 12.sp,
+                    color = AppTheme.colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                var currentPreset by remember { mutableStateOf(settingsManager.themePreset) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppThemePreset.entries.forEach { preset ->
+                        val selected = currentPreset == preset
+                        val presetPalette = getPaletteForPreset(preset, false)
+                        Surface(
+                            color = presetPalette.surface,
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                if (selected) 2.dp else 1.dp,
+                                if (selected) presetPalette.accent else AppTheme.colors.border
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    currentPreset = preset
+                                    settingsManager.themePreset = preset
+                                    viewModel?.setThemePreset(preset)
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clip(CircleShape)
+                                            .background(presetPalette.accent)
+                                    )
+                                    Text(
+                                        text = preset.title,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = presetPalette.textPrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = preset.subtitle,
+                                    fontSize = 10.sp,
+                                    color = presetPalette.textMuted
+                                )
+                            }
+                        }
+                    }
+                }
+
                 var amoled by remember { mutableStateOf(settingsManager.amoledTheme) }
                 SettingsSwitch(
                     title = "AMOLED-чёрная тема",
@@ -365,7 +431,7 @@ fun SettingsDialog(
                 Text(
                     text = "Размер шрифта",
                     fontSize = 12.sp,
-                    color = DuroTextSecondary,
+                    color = AppTheme.colors.textSecondary,
                     modifier = Modifier.padding(top = 8.dp)
                 )
                 var fontScale by remember { mutableStateOf(settingsManager.fontScale) }
@@ -376,7 +442,7 @@ fun SettingsDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (selected) DuroOrange.copy(alpha = 0.2f) else DuroSurface)
+                                .background(if (selected) AppTheme.colors.accent.copy(alpha = 0.2f) else AppTheme.colors.surface)
                                 .clickable {
                                     fontScale = scale
                                     settingsManager.fontScale = scale
@@ -388,7 +454,7 @@ fun SettingsDialog(
                             Text(
                                 text = label,
                                 fontSize = 11.sp,
-                                color = if (selected) DuroOrange else DuroTextSecondary
+                                color = if (selected) AppTheme.colors.accent else AppTheme.colors.textSecondary
                             )
                         }
                     }
@@ -396,7 +462,7 @@ fun SettingsDialog(
                 Text(
                     text = "Язык",
                     fontSize = 12.sp,
-                    color = DuroTextSecondary,
+                    color = AppTheme.colors.textSecondary,
                     modifier = Modifier.padding(top = 8.dp)
                 )
                 var lang by remember { mutableStateOf(settingsManager.appLanguage) }
@@ -407,7 +473,7 @@ fun SettingsDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (selected) DuroOrange.copy(alpha = 0.2f) else DuroSurface)
+                                .background(if (selected) AppTheme.colors.accent.copy(alpha = 0.2f) else AppTheme.colors.surface)
                                 .clickable {
                                     lang = code
                                     viewModel?.setLanguage(code)
@@ -419,13 +485,13 @@ fun SettingsDialog(
                             Text(
                                 text = label,
                                 fontSize = 12.sp,
-                                color = if (selected) DuroOrange else DuroTextSecondary
+                                color = if (selected) AppTheme.colors.accent else AppTheme.colors.textSecondary
                             )
                         }
                     }
                 }
 
-                HorizontalDivider(color = DuroBorder)
+                HorizontalDivider(color = AppTheme.colors.border)
 
                 // Голос (G1/F1)
                 SettingsSectionTitle("Голос")
@@ -523,10 +589,10 @@ fun SettingsDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = viewModel != null
                 ) {
-                    Text("💾 Бэкап и восстановление", fontSize = 12.sp, color = DuroTextPrimary)
+                    Text("Бэкап и восстановление", fontSize = 12.sp, color = AppTheme.colors.textPrimary)
                 }
 
-                HorizontalDivider(color = DuroBorder)
+                HorizontalDivider(color = AppTheme.colors.border)
 
                 // Save & Close Button
                 Button(
@@ -542,7 +608,10 @@ fun SettingsDialog(
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = DuroOrange)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.colors.accent,
+                        contentColor = AppTheme.colors.surface
+                    )
                 ) {
                     Text("Сохранить настройки", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
@@ -723,7 +792,7 @@ private fun SettingsSectionTitle(text: String) {
         text = text,
         fontSize = 14.sp,
         fontWeight = FontWeight.Bold,
-        color = DuroTextPrimary
+        color = AppTheme.colors.textPrimary
     )
 }
 
@@ -741,15 +810,15 @@ private fun SettingsSwitch(
             .padding(vertical = 4.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 13.sp, color = DuroTextPrimary)
-            Text(text = subtitle, fontSize = 11.sp, color = DuroTextSecondary)
+            Text(text = title, fontSize = 13.sp, color = AppTheme.colors.textPrimary)
+            Text(text = subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
         }
         Switch(
             checked = checked,
             onCheckedChange = onChecked,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = DuroOrange,
-                checkedTrackColor = DuroOrange.copy(alpha = 0.4f)
+                checkedThumbColor = AppTheme.colors.accent,
+                checkedTrackColor = AppTheme.colors.accent.copy(alpha = 0.4f)
             )
         )
     }

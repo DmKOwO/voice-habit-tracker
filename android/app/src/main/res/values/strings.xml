@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">Duro Voice Habits</string>
-    <string name="widget_duro_desc">Duro Habit Tracker виджет с возможностью отметки привычек и быстрой записи голосом</string>
-    <string name="widget_duro_card_desc">Индивидуальная карточка привычки Duro (стрики, тепловая карта 4x7, быстрый чек и микрофон)</string>
-    <string name="widget_voice_desc">Мгновенная голосовая запись мыслей и привычек через ИИ</string>
+    <string name="app_name">dairy</string>
+    <string name="widget_duro_desc">dairy виджет с возможностью отметки привычек и быстрой записи голосом</string>
+    <string name="widget_duro_card_desc">Индивидуальная карточка привычки dairy (стрики, тепловая карта, чек и микрофон)</string>
+    <string name="widget_voice_desc">Быстрая голосовая запись мыслей и привычек</string>
 </resources>
