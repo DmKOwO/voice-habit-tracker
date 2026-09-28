@@ -12,6 +12,7 @@ android/.kotlin/
 local.properties
 # APK не храним в git: они публикуются в GitHub Releases через CI.
 *.apk
+*.sha256
 
 # IDE
 .idea/
