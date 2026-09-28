@@ -85,6 +85,35 @@ async def test_voice_process_endpoint():
         assert data["success"] is True
         assert len(data["raw_transcript"]) > 0
         assert "summary" in data
+        assert "mode" in data
         assert isinstance(data["habits_completed"], list)
         assert isinstance(data["tasks_to_add"], list)
         assert data["duration_seconds"] >= 0
+
+
+def test_journal_schema_serialization():
+    from app.schemas import DigestSchema
+
+    digest = DigestSchema(
+        title="Размышления о смене фокуса в работе",
+        gist="Сконцентрироваться на глубокой работе без постоянных переключений.",
+        key_points=[
+            "Перегруженность мелкими задачами снижает отдачу",
+            "Выделить 2-3 часа утром под сложную архитектуру"
+        ],
+        tone="Аналитическое",
+        decisions=["Перенести командные созвоны на вторую половину дня"],
+        next_steps=["Обновить слоты в календаре"]
+    )
+    result = SemanticExtractionResult(
+        mode="JOURNAL",
+        mode_confidence=0.96,
+        mode_reason="Поток мыслей без задач",
+        summary="Размышления о фокусе в работе.",
+        digest=digest
+    )
+    json_str = result.model_dump_json()
+    assert '"mode":"JOURNAL"' in json_str or '"mode": "JOURNAL"' in json_str
+    assert "Размышления о смене фокуса" in json_str
+    assert "Аналитическое" in json_str
+

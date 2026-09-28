@@ -1,5 +1,6 @@
 package com.voicehabit.tracker.presentation.voice
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import com.voicehabit.tracker.domain.model.CaptureDigest
 import com.voicehabit.tracker.domain.model.IntentMode
 import com.voicehabit.tracker.domain.model.TaskType
@@ -183,23 +187,36 @@ fun ReviewBottomSheet(
 
                 }
 
-                // H1. Конспект свободного потока — то самое «диктофон с выжимкой».
+                // H1. Конспект / Дневник свободного потока.
                 digestState?.let { digest ->
                     if (!digest.isEmpty) {
                         item(key = "digest") {
-                            DigestPreview(
-                                digest = digest,
-                                editable = action.mode == IntentMode.DICTATE,
-                                onTitleChange = { value ->
-                                    digestState = digest.copy(title = value)
-                                },
-                                onDropSection = { section ->
-                                    digestState = digest.without(section)
-                                },
-                                onSpeak = { text ->
-                                    onSpeak(text)
-                                }
-                            )
+                            if (action.mode == IntentMode.JOURNAL) {
+                                JournalReviewCard(
+                                    digest = digest,
+                                    transcript = action.rawTranscript,
+                                    onTitleChange = { value ->
+                                        digestState = digest.copy(title = value)
+                                    },
+                                    onSpeak = { text ->
+                                        onSpeak(text)
+                                    }
+                                )
+                            } else {
+                                DigestPreview(
+                                    digest = digest,
+                                    editable = action.mode == IntentMode.DICTATE,
+                                    onTitleChange = { value ->
+                                        digestState = digest.copy(title = value)
+                                    },
+                                    onDropSection = { section ->
+                                        digestState = digest.without(section)
+                                    },
+                                    onSpeak = { text ->
+                                        onSpeak(text)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -438,19 +455,23 @@ fun ReviewBottomSheet(
                         .weight(1.5f)
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DuroOrange,
+                        containerColor = if (action.mode == IntentMode.JOURNAL) DuroJournalLavender else DuroOrange,
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = if (action.mode == IntentMode.JOURNAL) Icons.AutoMirrored.Filled.MenuBook else Icons.Default.Check,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (action.mode.producesEntities) "Применить всё" else "Сохранить",
+                        text = when (action.mode) {
+                            IntentMode.JOURNAL -> "Сохранить в дневник"
+                            IntentMode.LOG, IntentMode.MIXED -> "Применить всё"
+                            else -> "Сохранить"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         maxLines = 1,
@@ -771,9 +792,214 @@ private fun com.voicehabit.tracker.domain.model.CaptureDigest.without(
 
 internal fun modeAccent(mode: IntentMode): Color = when (mode) {
     IntentMode.LOG -> DuroCyan
+    IntentMode.JOURNAL -> DuroJournalLavender
     IntentMode.DICTATE -> DuroPurple
     IntentMode.MIXED -> DuroAmber
     IntentMode.QUERY -> DuroLime
+}
+
+@Composable
+private fun JournalReviewCard(
+    digest: CaptureDigest,
+    transcript: String,
+    onTitleChange: (String) -> Unit,
+    onSpeak: (String) -> Unit
+) {
+    var expandedTranscript by remember { mutableStateOf(false) }
+    var title by remember(digest.title) { mutableStateOf(digest.title) }
+
+    Surface(
+        color = DuroSurfaceElevated,
+        shape = RoundedCornerShape(18.dp),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, DuroJournalLavender.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header with badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(text = "📖", fontSize = 16.sp)
+                    Text(
+                        text = "ЗАПИСЬ В ДНЕВНИК",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DuroJournalLavender,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                if (digest.tone.isNotBlank()) {
+                    Surface(
+                        color = DuroJournalLavender.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = digest.tone,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = DuroJournalLavender,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Title
+            OutlinedTextField(
+                value = title,
+                onValueChange = {
+                    if (it.length <= 80) {
+                        title = it
+                        onTitleChange(it)
+                    }
+                },
+                label = { Text("Тема мысли / Заголовок", fontSize = 11.sp) },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DuroTextPrimary
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = DuroJournalLavender,
+                    unfocusedBorderColor = DuroBorder,
+                    focusedLabelColor = DuroJournalLavender,
+                    unfocusedLabelColor = DuroTextMuted,
+                    cursorColor = DuroJournalLavender
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Core Insight (Суть) formatted with quote container
+            if (digest.gist.isNotBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = DuroBackground,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(40.dp)
+                                .background(DuroJournalLavender, RoundedCornerShape(2.dp))
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "СУТЬ (CORE INSIGHT)",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DuroTextMuted,
+                                letterSpacing = 0.8.sp
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "«${digest.gist}»",
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = DuroTextPrimary
+                            )
+                        }
+                        IconButton(
+                            onClick = { onSpeak(digest.gist) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Text(text = "🔊", fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+
+            // Structured Key Points (Тезисы)
+            if (digest.keyPoints.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "КЛЮЧЕВЫЕ ТЕЗИСЫ",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DuroJournalLavender,
+                    letterSpacing = 0.8.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                digest.keyPoints.forEach { point ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(text = "•", color = DuroJournalLavender, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = point,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = DuroTextSecondary
+                        )
+                    }
+                }
+            }
+
+            // Collapsible transcript
+            if (transcript.isNotBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { expandedTranscript = !expandedTranscript }
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (expandedTranscript) "▼ Скрыть полную расшифровку" else "▶ Полная расшифровка (Транскрипт)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DuroTextMuted
+                    )
+                    Text(
+                        text = "${transcript.split(' ').filter { it.isNotBlank() }.size} слов",
+                        fontSize = 10.sp,
+                        color = DuroTextMuted
+                    )
+                }
+
+                AnimatedVisibility(visible = expandedTranscript) {
+                    Surface(
+                        color = DuroBackground,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                    ) {
+                        Text(
+                            text = transcript,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                            color = DuroTextSecondary,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

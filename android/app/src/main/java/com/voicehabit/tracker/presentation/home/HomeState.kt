@@ -15,11 +15,22 @@ import com.voicehabit.tracker.domain.model.Subtask
 import com.voicehabit.tracker.domain.model.Task
 import com.voicehabit.tracker.domain.model.VoiceNoteAction
 
-/** Экраны хаба (панель «Ещё»). */
+/** 3 ключевые вкладки новой навигации: Ритм, Дневник, Обзор. */
+enum class MainTab(val title: String, val emoji: String) {
+    RHYTHM("Ритм", "🌿"),
+    JOURNAL("Дневник", "📖"),
+    OVERVIEW("Обзор", "⚡");
+
+    val label: String get() = title
+}
+
+/** Экраны хаба (панель «Ещё») и вспомогательные экраны. */
 enum class AppScreen {
     HOME, HUB, STATS, ARCHIVE, ROUTINES, CHALLENGES, ACHIEVEMENTS, REVIEW, FOCUS, BACKUP, ABOUT,
     /** H1: конспекты свободного потока — «диктофон с выжимкой». */
-    DIGESTS
+    DIGESTS,
+    /** Дневник мыслей первого класса. */
+    JOURNAL
 }
 
 /** Сортировка задач (G11). */
@@ -89,7 +100,14 @@ data class HomeState(
      * пересчитываются при смене суток, а не висят вчерашними до первого тапа.
      */
     val todayEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
-    // Навигация и фильтры (F14/G11/G12/G33)
+    // Навигация и фильтры (новая 3-вкладочная структура: Ритм, Дневник, Обзор)
+    val selectedMainTab: MainTab = MainTab.RHYTHM,
+    val isProfileMenuOpen: Boolean = false,
+    val isSearchExpanded: Boolean = false,
+    val journalFilterMood: String? = null,
+    val journalFilterTag: String? = null,
+    val journalSearchQuery: String = "",
+    val selectedJournalForDetail: DigestRecord? = null,
     val screen: AppScreen = AppScreen.HOME,
     val searchQuery: String = "",
     val taskSort: TaskSort = TaskSort.MANUAL,
@@ -135,7 +153,12 @@ data class HomeState(
     // Тема (F19): читается из настроек, пересоздаёт палитру.
     val amoledTheme: Boolean = false,
     val fontScale: Float = 1.0f,
-    val appLanguage: String = "ru"
+    val appLanguage: String = "ru",
+    // Focus Pomodoro Timer
+    val focusTimerSeconds: Int = 25 * 60,
+    val focusTimerTotalSeconds: Int = 25 * 60,
+    val isFocusTimerRunning: Boolean = false,
+    val focusSessionCount: Int = 0
 )
 
 /** Сообщение + действие для Snackbar (например, отмена отметки). */

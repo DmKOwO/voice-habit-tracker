@@ -2,15 +2,16 @@ package com.voicehabit.tracker.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Authentic Duro Deep Dark Palette
-val DuroBackground = Color(0xFF0C0C0E)
-val DuroSurface = Color(0xFF15151A)
-val DuroSurfaceElevated = Color(0xFF1C1C24)
-val DuroBorder = Color(0xFF282833)
+// Authentic Duro Deep Dark Palette (Duro Design System)
+val DuroBackground = Color(0xFF0C0C12)
+val DuroSurface = Color(0xFF161622)
+val DuroSurfaceElevated = Color(0xFF1E1E2C)
+val DuroBorder = Color(0xFF282838)
 
 // Signature Accent & Category Colors
 val DuroOrange = Color(0xFFFF6B35)
-val DuroPurple = Color(0xFFA855F7)
+val DuroJournalLavender = Color(0xFF8B5CF6)
+val DuroPurple = Color(0xFF8B5CF6)
 val DuroCyan = Color(0xFF0EA5E9)
 val DuroLime = Color(0xFF84CC16)
 val DuroPink = Color(0xFFEC4899)

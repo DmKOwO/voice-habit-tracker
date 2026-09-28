@@ -129,9 +129,14 @@ async def process_voice(
         stt_duration_ms=stt_ms,
         llm_duration_ms=llm_ms,
         model_used=f"{stt_model} + {llm_model}",
+        mode=extraction.mode,
+        mode_confidence=extraction.mode_confidence,
+        mode_reason=extraction.mode_reason,
         summary=extraction.summary,
+        digest=extraction.digest,
         habits_completed=extraction.habits_completed,
         tasks_to_add=extraction.tasks_to_add,
         tasks_to_complete=extraction.tasks_to_complete,
-        quick_notes=extraction.quick_notes
+        quick_notes=extraction.quick_notes,
+        insights=extraction.insights
     )

@@ -125,6 +125,13 @@ object IntentRouter {
         "слушай", "ну и", "и дальше", "а дальше", "проговорил", "проговорила", "думаю вслух"
     )
 
+    private val JOURNAL_MARKERS = listOf(
+        "дневник", "мои мысли", "мысли вслух", "запись в дневник", "поток мыслей",
+        "рефлексия", "я чувствую", "мои переживания", "подумал о", "подумала о",
+        "размышления о", "хочу записать мысль", "запиши в дневник", "хочу поделиться мыслями",
+        "заметка для себя", "инсайт", "мысли про", "рассуждения о"
+    )
+
     private val NARRATIVE_MARKERS = listOf(
         "он сказал", "она сказала", "они сказали", "с ним", "с ней", "с ними", "мы решили",
         "мы договорились", "потом", "потом ещё", "и дальше", "ну и дальше", "в тот раз",
@@ -183,6 +190,7 @@ object IntentRouter {
         val softSignals = collect(lower, ACTION_VERBS).toMutableList()
         if (startsWithInfinitive(lower)) softSignals.add("глагол действия в начале")
 
+        val journalSignals = collect(lower, JOURNAL_MARKERS)
         val dictateSignals = collect(lower, DICTATE_MARKERS + NARRATIVE_MARKERS)
         val questionSignals = collect(lower, QUESTION_WORDS)
         val hasQuestionMark = lower.contains('?')
@@ -194,6 +202,7 @@ object IntentRouter {
         val softScore = if (softSignals.isEmpty()) 0.0 else 1.0 + 0.25 * softSignals.size.coerceAtMost(4)
 
         var dictateScore = if (dictateSignals.isEmpty()) 0.0 else 1.2 + 0.45 * dictateSignals.size.coerceAtMost(5)
+        if (journalSignals.isNotEmpty()) dictateScore += 1.8 + 0.5 * journalSignals.size.coerceAtMost(4)
         if (words >= RAMBLE_WORDS) dictateScore += 0.6
         if (words >= RAMBLE_WORDS_STRONG) dictateScore += 0.6
         if (words >= RAMBLE_WORDS_VERY_STRONG) dictateScore += 0.8
@@ -203,7 +212,7 @@ object IntentRouter {
         val queryScore = if (questionSignals.isEmpty()) 0.0 else 1.4 + 0.4 * questionSignals.size.coerceAtMost(3)
 
         val taskScore = hardScore + softScore
-        val mode = decide(taskScore, hardSignals.isNotEmpty(), softSignals.isEmpty(), dictateScore, queryScore, words)
+        val mode = decide(taskScore, hardSignals.isNotEmpty(), softSignals.isEmpty(), dictateScore, queryScore, words, journalSignals.isNotEmpty())
 
         val scores = listOf(taskScore, dictateScore, queryScore)
         val top = scores.max()
@@ -220,8 +229,8 @@ object IntentRouter {
         return ModeVerdict(
             mode = mode,
             confidence = confidence,
-            reason = explain(mode, hardSignals, softSignals, dictateSignals, questionSignals, words),
-            signals = (hardSignals + softSignals + dictateSignals + questionSignals).distinct()
+            reason = explain(mode, hardSignals, softSignals, dictateSignals + journalSignals, questionSignals, words),
+            signals = (hardSignals + softSignals + dictateSignals + journalSignals + questionSignals).distinct()
         )
     }
 
@@ -231,8 +240,10 @@ object IntentRouter {
         noSoft: Boolean,
         dictateScore: Double,
         queryScore: Double,
-        words: Int
+        words: Int,
+        hasJournal: Boolean
     ): IntentMode = when {
+        hasJournal && !hasHard -> IntentMode.JOURNAL
         hasHard && dictateScore >= 2.0 -> IntentMode.MIXED
         hasHard -> IntentMode.LOG
         !noSoft && dictateScore >= 2.4 -> IntentMode.MIXED
@@ -262,6 +273,8 @@ object IntentRouter {
         return when (mode) {
             IntentMode.LOG ->
                 "Нашёл конкретное действие: $sample$lengthNote"
+            IntentMode.JOURNAL ->
+                "Запись в дневник мыслей: $sample$lengthNote"
             IntentMode.MIXED ->
                 "Действие есть, но оно внутри рассуждения: $sample$lengthNote"
             IntentMode.DICTATE ->

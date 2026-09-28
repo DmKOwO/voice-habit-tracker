@@ -50,6 +50,7 @@ class HomeViewModel @JvmOverloads constructor(
 
     private val logger = AppLogger.instance()
     val audioRecorder: AudioRecorderManager = container.audioRecorder
+    val audioPlayer: com.voicehabit.tracker.core.audio.AudioPlayerManager = com.voicehabit.tracker.core.audio.AudioPlayerManager()
     private val speechRecognizer: SpeechRecognizerHelper = container.speechRecognizer
     private val extras = container.extrasRepository
     /** H1: конспекты свободного потока. */
@@ -627,6 +628,114 @@ class HomeViewModel @JvmOverloads constructor(
 
     /** H1. Экран конспектов. */
     fun openDigests() = openScreen(AppScreen.DIGESTS)
+
+    fun setSelectedMainTab(tab: MainTab) {
+        _state.update { it.copy(selectedMainTab = tab, screen = AppScreen.HOME) }
+    }
+
+    private var focusTimerJob: kotlinx.coroutines.Job? = null
+
+    fun setFocusTimerDuration(durationSec: Int) {
+        focusTimerJob?.cancel()
+        _state.update {
+            it.copy(
+                focusTimerTotalSeconds = durationSec,
+                focusTimerSeconds = durationSec,
+                isFocusTimerRunning = false
+            )
+        }
+    }
+
+    fun toggleFocusTimer() {
+        val isRunning = _state.value.isFocusTimerRunning
+        if (isRunning) {
+            focusTimerJob?.cancel()
+            _state.update { it.copy(isFocusTimerRunning = false) }
+        } else {
+            _state.update { it.copy(isFocusTimerRunning = true) }
+            focusTimerJob = viewModelScope.launch {
+                while (_state.value.isFocusTimerRunning && _state.value.focusTimerSeconds > 0) {
+                    kotlinx.coroutines.delay(1000)
+                    _state.update {
+                        val next = it.focusTimerSeconds - 1
+                        if (next <= 0) {
+                            it.copy(
+                                focusTimerSeconds = it.focusTimerTotalSeconds,
+                                isFocusTimerRunning = false,
+                                focusSessionCount = it.focusSessionCount + 1
+                            )
+                        } else {
+                            it.copy(focusTimerSeconds = next)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun resetFocusTimer() {
+        focusTimerJob?.cancel()
+        _state.update {
+            it.copy(
+                focusTimerSeconds = it.focusTimerTotalSeconds,
+                isFocusTimerRunning = false
+            )
+        }
+    }
+
+    fun openProfileMenu() {
+        _state.update { it.copy(isProfileMenuOpen = true) }
+    }
+
+    fun closeProfileMenu() {
+        _state.update { it.copy(isProfileMenuOpen = false) }
+    }
+
+    fun toggleSearchExpanded() {
+        _state.update { it.copy(isSearchExpanded = !it.isSearchExpanded) }
+    }
+
+    fun setSearchExpanded(expanded: Boolean) {
+        _state.update { it.copy(isSearchExpanded = expanded) }
+    }
+
+    fun setJournalFilterMood(mood: String?) {
+        _state.update { it.copy(journalFilterMood = mood) }
+    }
+
+    fun setJournalFilterTag(tag: String?) {
+        _state.update { it.copy(journalFilterTag = tag) }
+    }
+
+    fun setJournalSearchQuery(query: String) {
+        _state.update { it.copy(journalSearchQuery = query) }
+    }
+
+    fun openJournalDetail(record: DigestRecord) {
+        _state.update { it.copy(selectedJournalForDetail = record) }
+    }
+
+    fun closeJournalDetail() {
+        _state.update { it.copy(selectedJournalForDetail = null) }
+    }
+
+    suspend fun getAudioPath(voiceLogId: String?): String? {
+        if (voiceLogId == null) return null
+        return withContext(dispatchers.io) {
+            db.voiceLogDao().getVoiceLogById(voiceLogId)?.audioPath
+        }
+    }
+
+    fun playAudioForRecord(record: DigestRecord) {
+        viewModelScope.launch {
+            val path = getAudioPath(record.voiceLogId)
+            if (path != null) {
+                audioPlayer.toggle(path)
+            } else {
+                showSnackbar("Аудиозапись не найдена на устройстве")
+            }
+        }
+    }
 
     fun toggleDigestPinned(id: String) {
         viewModelScope.launch(dispatchers.io) {
@@ -1627,6 +1736,11 @@ class HomeViewModel @JvmOverloads constructor(
     private fun refreshWidgets() {
         DuroHabitWidgetProvider.updateAllWidgets(getApplication())
         com.voicehabit.tracker.widget.DuroHabitCardWidgetProvider.updateAllCardWidgets(getApplication())
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        audioPlayer.stop()
     }
 
     private companion object {

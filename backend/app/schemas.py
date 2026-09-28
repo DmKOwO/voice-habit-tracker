@@ -104,13 +104,68 @@ class QuickNote(BaseModel):
     )
 
 
+class DigestSchema(BaseModel):
+    title: str = Field(
+        ...,
+        description="Ёмкая и точная тема мысли (например: 'Размышления о смене фокуса в работе')"
+    )
+    gist: str = Field(
+        ...,
+        description="Суть (Core Insight) мысли в 1-2 главных предложениях"
+    )
+    key_points: List[str] = Field(
+        default_factory=list,
+        description="Структурированные ключевые тезисы рассуждения"
+    )
+    decisions: List[str] = Field(
+        default_factory=list,
+        description="Принятые решения или выводы"
+    )
+    open_questions: List[str] = Field(
+        default_factory=list,
+        description="Открытые вопросы"
+    )
+    next_steps: List[str] = Field(
+        default_factory=list,
+        description="Кандидаты в действия / следующие шаги"
+    )
+    people: List[str] = Field(
+        default_factory=list,
+        description="Упомянутые люди"
+    )
+    numbers: List[str] = Field(
+        default_factory=list,
+        description="Упомянутые цифры"
+    )
+    tone: str = Field(
+        "",
+        description="Эмоциональный тон / Настроение: Спокойное, Вдохновленное, Тревожное, Аналитическое"
+    )
+
+
 # ----------------------------------------------------
 # 3. Overall Structured Output Schema for Gemini
 # ----------------------------------------------------
 class SemanticExtractionResult(BaseModel):
+    mode: str = Field(
+        "LOG",
+        description="Режим намерения: LOG (задача/отметка), JOURNAL (запись в дневник/поток мыслей), MIXED (поток + дело), QUERY (вопрос)"
+    )
+    mode_confidence: float = Field(
+        0.9,
+        description="Уверенность в распознанном режиме от 0.0 до 1.0"
+    )
+    mode_reason: str = Field(
+        "",
+        description="Причина определения режима"
+    )
     summary: str = Field(
         ...,
         description="Лаконичное резюме аудиозаписи в 1-2 предложениях на русском языке"
+    )
+    digest: Optional[DigestSchema] = Field(
+        None,
+        description="Выжимка дневника или свободного потока для режимов JOURNAL и MIXED"
     )
     habits_completed: List[HabitCompletion] = Field(
         default_factory=list,
@@ -128,6 +183,10 @@ class SemanticExtractionResult(BaseModel):
         default_factory=list,
         description="Свободные мысли, идеи и заметки"
     )
+    insights: List[str] = Field(
+        default_factory=list,
+        description="Шаги рассуждения AI"
+    )
 
 
 # ----------------------------------------------------
@@ -140,8 +199,14 @@ class VoiceProcessResponse(BaseModel):
     stt_duration_ms: int = Field(0, description="Время транскрипции в мс")
     llm_duration_ms: int = Field(0, description="Время семантического разбора в мс")
     model_used: str = Field(..., description="Использованные модели (например: groq:whisper-turbo + gemini-3.5-flash-lite)")
+    mode: str = Field("LOG", description="Определенный режим: LOG, JOURNAL, MIXED, QUERY")
+    mode_confidence: float = Field(0.9, description="Уверенность")
+    mode_reason: str = Field("", description="Пояснение режима")
     summary: str = Field(..., description="Краткое резюме")
+    digest: Optional[DigestSchema] = Field(None, description="Структурированный дневник / выжимка")
     habits_completed: List[HabitCompletion] = Field(default_factory=list)
     tasks_to_add: List[TaskCreate] = Field(default_factory=list)
     tasks_to_complete: List[TaskComplete] = Field(default_factory=list)
     quick_notes: List[QuickNote] = Field(default_factory=list)
+    insights: List[str] = Field(default_factory=list)
+
