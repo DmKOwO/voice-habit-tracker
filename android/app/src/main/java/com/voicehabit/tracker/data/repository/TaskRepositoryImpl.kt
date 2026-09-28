@@ -73,12 +73,15 @@ class TaskRepositoryImpl(
         taskDao.insertTask(task.toEntity())
     }
 
+    private fun todayLocalDate(): LocalDate =
+        Instant.ofEpochMilli(clock()).atZone(zone).toLocalDate()
+
     override suspend fun completeTask(taskId: String) {
-        completeTaskOn(taskId, LocalDate.now(zone), zone, clock())
+        completeTaskOn(taskId, todayLocalDate(), zone, clock())
     }
 
     override suspend fun reopenTask(taskId: String) {
-        reopenTaskOn(taskId, LocalDate.now(zone))
+        reopenTaskOn(taskId, todayLocalDate())
     }
 
     override suspend fun completeTaskOn(
@@ -120,7 +123,7 @@ class TaskRepositoryImpl(
     }
 
     private fun todayString(): String =
-        Instant.ofEpochMilli(clock()).atZone(zone).toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        todayLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE)
 
     override suspend fun updateTask(task: Task) {
         taskDao.updateTaskFields(

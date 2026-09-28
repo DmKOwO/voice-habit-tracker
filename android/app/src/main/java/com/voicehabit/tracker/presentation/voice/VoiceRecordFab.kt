@@ -24,7 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
@@ -183,7 +183,7 @@ private fun PulsingRecordControl(
         val pulse = rememberInfiniteTransition(label = "recordPulse")
         pulse.animateFloat(
             initialValue = 1f,
-            targetValue = 1.1f,
+            targetValue = 1.12f,
             animationSpec = infiniteRepeatable(
                 animation = tween(900, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse
@@ -194,59 +194,75 @@ private fun PulsingRecordControl(
         1f
     }
 
+    val glowColor = if (isRecording) DuroRed else DuroOrange
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
     ) {
-        // A static blurred halo reads as glow/depth without blurring the live
-        // recording waveform every frame.
+        // Идеально круглое радиальное свечение: не зависит от RenderEffect и исключает
+        // прямоугольные артефакты размытия Compose-слоёв.
         Box(
             modifier = Modifier
-                .size(88.dp)
-                .blur(30.dp)
-                .background(
-                    (if (isRecording) DuroRed else DuroOrange).copy(alpha = 0.16f),
-                    CircleShape
-                )
+                .size(96.dp)
+                .graphicsLayer {
+                    scaleX = pulseScale
+                    scaleY = pulseScale
+                    transformOrigin = TransformOrigin.Center
+                }
+                .drawBehind {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                glowColor.copy(alpha = if (isRecording) 0.38f else 0.22f),
+                                glowColor.copy(alpha = if (isRecording) 0.16f else 0.07f),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = size.minDimension / 2f
+                        )
+                    )
+                }
         )
         Box(
             modifier = Modifier
                 .size(62.dp)
-            .graphicsLayer {
-                scaleX = pulseScale
-                scaleY = pulseScale
-                transformOrigin = TransformOrigin.Center
-            }
-            .clip(CircleShape)
-            .background(
-                if (isRecording) {
-                    Brush.linearGradient(listOf(DuroRed, Color(0xFFDC2626)))
-                } else {
-                    Brush.linearGradient(listOf(DuroOrange, Color(0xFFFF854D)))
+                .graphicsLayer {
+                    scaleX = pulseScale
+                    scaleY = pulseScale
+                    transformOrigin = TransformOrigin.Center
                 }
-            )
-            .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-            .duroPressable(
-                haptic = HapticFeedbackType.LongPress,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        AnimatedContent(
-            targetState = isRecording,
-            transitionSpec = {
-                (fadeIn(DuroIconSpring) + scaleIn(DuroIconSpring, initialScale = 0.72f))
-                    .togetherWith(fadeOut(DuroContentSpring) + scaleOut(DuroContentSpring, targetScale = 0.72f))
-            },
-            label = "recordIconMorph"
-        ) { recording ->
-            Icon(
-                imageVector = if (recording) Icons.Default.Stop else Icons.Default.Mic,
-                contentDescription = if (recording) "Остановить запись" else "Начать голосовой ввод",
-                tint = Color.White,
-                modifier = Modifier.size(30.dp)
-            )
-        }
+                .clip(CircleShape)
+                .background(
+                    if (isRecording) {
+                        Brush.linearGradient(listOf(DuroRed, Color(0xFFDC2626)))
+                    } else {
+                        Brush.linearGradient(listOf(DuroOrange, Color(0xFFFF854D)))
+                    }
+                )
+                .border(2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                .duroPressable(
+                    haptic = HapticFeedbackType.LongPress,
+                    onClick = onClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = isRecording,
+                transitionSpec = {
+                    (fadeIn(DuroIconSpring) + scaleIn(DuroIconSpring, initialScale = 0.72f))
+                        .togetherWith(fadeOut(DuroContentSpring) + scaleOut(DuroContentSpring, targetScale = 0.72f))
+                },
+                label = "recordIconMorph"
+            ) { recording ->
+                Icon(
+                    imageVector = if (recording) Icons.Default.Stop else Icons.Default.Mic,
+                    contentDescription = if (recording) "Остановить запись" else "Начать голосовой ввод",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
     }
 }
+

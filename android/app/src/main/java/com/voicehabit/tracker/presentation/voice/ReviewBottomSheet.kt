@@ -24,7 +24,6 @@ import com.voicehabit.tracker.domain.model.IntentMode
 import com.voicehabit.tracker.domain.model.TaskType
 import com.voicehabit.tracker.domain.model.VoiceNoteAction
 import com.voicehabit.tracker.presentation.theme.*
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -42,8 +41,6 @@ fun ReviewBottomSheet(
     var rescheduleState by remember { mutableStateOf(action.tasksToReschedule) }
     var focusState by remember { mutableStateOf(action.focusToStart) }
     var digestState by remember { mutableStateOf(action.digest) }
-    var autoApplySecondsLeft by remember { mutableIntStateOf(autoApplySeconds(action.mode)) }
-    var isTimerCancelled by remember { mutableStateOf(false) }
 
     fun currentAction(): VoiceNoteAction = action.copy(
         habitsCompleted = habitsState,
@@ -54,16 +51,6 @@ fun ReviewBottomSheet(
         digest = digestState
     )
 
-    LaunchedEffect(isTimerCancelled) {
-        if (!isTimerCancelled) {
-            while (autoApplySecondsLeft > 0) {
-                delay(1000)
-                autoApplySecondsLeft--
-            }
-            onApply(currentAction())
-        }
-    }
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = DuroSurface,
@@ -73,57 +60,27 @@ fun ReviewBottomSheet(
         }
     ) {
         Column(
-            // Высота намеренно не задаётся: ModalBottomSheet меряет содержимое по
-            // wrapContent, и любая попытка ограничить её долей экрана здесь не
-            // срабатывает — блок «как я это понял» всё равно выдавливал кнопки за
-            // нижний край. Поэтому кнопки лежат последним элементом скролл-списка:
-            // до них всегда можно дотянуться, а нельзя потерять.
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
         ) {
-            // Header with Timer
+            // Чистый заголовок без отвлекающих таймеров и дебаг-метрик
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        DuroAsterisk(size = 18.dp, color = DuroOrange)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Разбор записи",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = DuroTextPrimary,
-                            // Две строки, а не одна: на 720px при шрифте 1.3x «Разбор
-                            // записи» переносится, и жёсткий maxLines=1 превращал
-                            // заголовок в «Разбор …» — он переставал объяснять экран.
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DuroAsterisk(size = 20.dp, color = DuroOrange)
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "${action.modelUsed} · ${action.sttDurationMs + action.llmDurationMs} мс",
-                        fontSize = 11.sp,
-                        color = DuroTextMuted,
+                        text = "Разбор записи",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = DuroTextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                if (!isTimerCancelled && autoApplySecondsLeft > 0) {
-                    AssistChip(
-                        onClick = { isTimerCancelled = true },
-                        label = {
-                            Text("Авто-сохранение: ${autoApplySecondsLeft}с", fontSize = 11.sp)
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = DuroOrange.copy(alpha = 0.15f),
-                            labelColor = DuroOrange
-                        )
                     )
                 }
             }
@@ -134,12 +91,11 @@ fun ReviewBottomSheet(
             ModeBadge(
                 action = action,
                 onOverride = { mode ->
-                    isTimerCancelled = true
                     onOverrideMode(mode)
                 }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Summary + TTS (G1)
             Row(
@@ -150,18 +106,16 @@ fun ReviewBottomSheet(
             ) {
                 Text(
                     text = "«${action.summary}»",
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
                     fontWeight = FontWeight.Medium,
-                    color = DuroTextSecondary,
-                    // Сводка — короткая строка, а не пересказ. Раньше она не имела
-                    // ограничения по высоте и выталкивала конспект за нижний край экрана.
-                    maxLines = 3,
+                    color = DuroTextPrimary,
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(
                     onClick = {
-                        isTimerCancelled = true
                         onSpeak(action.summary)
                     },
                     modifier = Modifier.size(36.dp)
@@ -169,6 +123,7 @@ fun ReviewBottomSheet(
                     Text(text = "🔊", fontSize = 18.sp)
                 }
             }
+
             if (action.daySummaryRequested) {
                 Text(
                     text = "📋 Сводка дня будет показана и озвучена после применения",
@@ -179,7 +134,9 @@ fun ReviewBottomSheet(
             }
 
             LazyColumn(
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item(key = "insights") {
@@ -234,15 +191,12 @@ fun ReviewBottomSheet(
                                 digest = digest,
                                 editable = action.mode == IntentMode.DICTATE,
                                 onTitleChange = { value ->
-                                    isTimerCancelled = true
                                     digestState = digest.copy(title = value)
                                 },
                                 onDropSection = { section ->
-                                    isTimerCancelled = true
                                     digestState = digest.without(section)
                                 },
                                 onSpeak = { text ->
-                                    isTimerCancelled = true
                                     onSpeak(text)
                                 }
                             )
@@ -281,7 +235,6 @@ fun ReviewBottomSheet(
                                     Checkbox(
                                         checked = habitAction.isSelected,
                                         onCheckedChange = { checked ->
-                                            isTimerCancelled = true
                                             habitsState = habitsState.map {
                                                 if (it.habitTitle == habitAction.habitTitle) it.copy(isSelected = checked) else it
                                             }
@@ -339,7 +292,6 @@ fun ReviewBottomSheet(
                                 subtitle = "В корзину (восстановимо)",
                                 checked = deleteAction.isSelected,
                                 onChecked = { checked ->
-                                    isTimerCancelled = true
                                     deleteState = deleteState.map {
                                         if (it.taskTitle == deleteAction.taskTitle) it.copy(isSelected = checked) else it
                                     }
@@ -355,7 +307,6 @@ fun ReviewBottomSheet(
                                 subtitle = "Перенести" + (reschedule.newDueDate?.let { " до $it" } ?: ""),
                                 checked = reschedule.isSelected,
                                 onChecked = { checked ->
-                                    isTimerCancelled = true
                                     rescheduleState = rescheduleState.map {
                                         if (it.taskTitle == reschedule.taskTitle) it.copy(isSelected = checked) else it
                                     }
@@ -371,7 +322,6 @@ fun ReviewBottomSheet(
                                 subtitle = focus.label,
                                 checked = focus.isSelected,
                                 onChecked = { checked ->
-                                    isTimerCancelled = true
                                     focusState = focus.copy(isSelected = checked)
                                 }
                             )
@@ -410,7 +360,6 @@ fun ReviewBottomSheet(
                                     Checkbox(
                                         checked = taskAction.isSelected,
                                         onCheckedChange = { checked ->
-                                            isTimerCancelled = true
                                             tasksState = tasksState.map {
                                                 if (it.title == taskAction.title) it.copy(isSelected = checked) else it
                                             }
@@ -455,46 +404,58 @@ fun ReviewBottomSheet(
                         }
                     }
                 }
+            }
 
-                // H1: кнопки — последний элемент списка, а не фиксированный ряд под ним.
-                item(key = "actions") {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DuroTextMuted),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text("Отклонить", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(color = DuroBorder)
+            Spacer(modifier = Modifier.height(14.dp))
 
-                        Button(
-                            onClick = { onApply(currentAction()) },
-                            modifier = Modifier.weight(1.5f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = DuroOrange,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (action.mode.producesEntities) "Применить всё" else "Сохранить",
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+            // Панель осознанных действий: всегда видна и не перекрывается длинным текстом
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DuroTextMuted),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(
+                        text = "Отклонить",
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = { onApply(currentAction()) },
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DuroOrange,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (action.mode.producesEntities) "Применить всё" else "Сохранить",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -504,19 +465,6 @@ fun ReviewBottomSheet(
 /** Больше пяти пунктов «как я это понял» превращаются в простыню и съедают шторку. */
 private const val MAX_VISIBLE_INSIGHTS = 5
 
-/**
- * H1. На конспекте авто-сохранение идёт медленнее, чем на задаче.
- *
- * Восемь секунд — это «не заметил и согласился» для одной задачи. Для конспекта
- * восемь секунд — это «не успел прочитать свои же мысли»: текст всё равно сохранится
- * в `digests`, но несохранённые правки заголовка потерялись бы, а шторка с таймером
- * читается как «что-то сейчас произойдёт».
- */
-private fun autoApplySeconds(mode: IntentMode): Int = when (mode) {
-    IntentMode.LOG -> 8
-    IntentMode.MIXED -> 14
-    IntentMode.DICTATE, IntentMode.QUERY -> 20
-}
 
 /** ISO-дата в компактный вид: без «T» и секунд, если их не было. */
 private fun formatDue(iso: String): String =
