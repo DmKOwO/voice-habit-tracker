@@ -36,6 +36,16 @@ fun bundledKey(propName: String, envName: String, localPropName: String): String
  * CI перекрывает её -PversionName/-PversionCode из тега.
  */
 fun appVersion(propName: String, fallback: String): String {
+    // 1. Приоритет аргументов командной строки (-PversionName=... или -PversionCode=...)
+    val cliProp = (project.findProperty(propName) as? String)
+        ?: (project.findProperty(propName.lowercase()) as? String)
+        ?: if (propName == "VERSION_NAME") (project.findProperty("versionName") as? String) else null
+        ?: if (propName == "VERSION_CODE") (project.findProperty("versionCode") as? String) else null
+    if (!cliProp.isNullOrBlank()) {
+        return cliProp.trim()
+    }
+
+    // 2. Чтение из version.properties
     val file = rootProject.file("version.properties")
     if (file.exists()) {
         runCatching {
@@ -44,7 +54,7 @@ fun appVersion(propName: String, fallback: String): String {
             props.getProperty(propName)?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         }
     }
-    return (project.findProperty(propName) as String?) ?: fallback
+    return fallback
 }
 
 android {
