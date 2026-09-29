@@ -79,6 +79,54 @@ class CalculateStreakUseCaseTest {
 
         assertEquals(2, useCase(listOf(todayLateNight, yesterdayEarlyMorning)))
     }
+
+    @Test
+    fun `habit scheduled on specific days does not break streak on rest days`() {
+        val zone = java.time.ZoneId.of("UTC")
+        // Fixed Monday: 2026-09-28 (Monday = 1)
+        val monday = java.time.LocalDate.of(2026, 9, 28)
+        val wednesday = monday.plusDays(2) // 2026-09-30 (Wednesday = 3)
+        val thursday = monday.plusDays(3) // 2026-10-01 (Thursday = 4)
+
+        // Today is Thursday afternoon. Habit is scheduled Mon (1), Thu (4), Sun (7)
+        val nowClock = { thursday.atTime(15, 0).atZone(zone).toInstant().toEpochMilli() }
+        val useCase = CalculateStreakUseCase(zone, nowClock)
+
+        val monTimestamp = monday.atTime(10, 0).atZone(zone).toInstant().toEpochMilli()
+        val thuTimestamp = thursday.atTime(10, 0).atZone(zone).toInstant().toEpochMilli()
+
+        val schedule = setOf(1, 4, 7)
+
+        // 1. Only Monday completed, today (Thursday) not completed yet: streak = 1 (Tue and Wed are rest days)
+        assertEquals(1, useCase(listOf(monTimestamp), scheduleDays = schedule))
+
+        // 2. Both Monday and Thursday completed: streak = 2
+        assertEquals(2, useCase(listOf(monTimestamp, thuTimestamp), scheduleDays = schedule))
+
+        // 3. On Wednesday (rest day), with only Monday completed: streak = 1
+        val wedClock = { wednesday.atTime(12, 0).atZone(zone).toInstant().toEpochMilli() }
+        val wedUseCase = CalculateStreakUseCase(zone, wedClock)
+        assertEquals(1, wedUseCase(listOf(monTimestamp), scheduleDays = schedule))
+    }
+
+    @Test
+    fun `habit scheduled on specific days breaks streak when scheduled day is missed`() {
+        val zone = java.time.ZoneId.of("UTC")
+        val monday = java.time.LocalDate.of(2026, 9, 21) // Mon week 1
+        val nextMonday = java.time.LocalDate.of(2026, 9, 28) // Mon week 2
+
+        val nowClock = { nextMonday.atTime(15, 0).atZone(zone).toInstant().toEpochMilli() }
+        val useCase = CalculateStreakUseCase(zone, nowClock)
+
+        val mon1Timestamp = monday.atTime(10, 0).atZone(zone).toInstant().toEpochMilli()
+        val nextMonTimestamp = nextMonday.atTime(10, 0).atZone(zone).toInstant().toEpochMilli()
+
+        val schedule = setOf(1, 4, 7) // Mon, Thu, Sun
+
+        // Missed Thursday (week 1) and Sunday (week 1), only Monday week 1 and Monday week 2 done:
+        // Streak is 1 (only the current active streak), not 2
+        assertEquals(1, useCase(listOf(mon1Timestamp, nextMonTimestamp), scheduleDays = schedule))
+    }
 }
 
 class StreakFreezeTest {

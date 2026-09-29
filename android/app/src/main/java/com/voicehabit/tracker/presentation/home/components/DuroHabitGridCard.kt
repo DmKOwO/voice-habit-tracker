@@ -158,6 +158,9 @@ fun DuroHabitGridCard(
                             if (habit.isCompletedToday) list[27] = true
                             list
                         }
+                        val today = java.time.LocalDate.now()
+                        val startDay = today.minusDays(27)
+                        val scheduleDays = habit.scheduleDays.ifEmpty { (1..7).toSet() }
 
                         for (row in 0 until 4) {
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -165,6 +168,8 @@ fun DuroHabitGridCard(
                                     val idx = row * 7 + col
                                     val isFilled = history.getOrElse(idx) { false }
                                     val isToday = idx == 27
+                                    val dayDate = startDay.plusDays(idx.toLong())
+                                    val isScheduled = dayDate.dayOfWeek.value in scheduleDays
 
                                     Box(
                                         modifier = Modifier
@@ -174,23 +179,24 @@ fun DuroHabitGridCard(
                                                 when {
                                                     isToday && habit.isCompletedToday -> accentColor
                                                     isFilled -> accentColor.copy(alpha = 0.85f)
+                                                    !isScheduled -> AppTheme.colors.surfaceElevated.copy(alpha = 0.25f)
                                                     else -> AppTheme.colors.surfaceElevated
-                                                 }
-                                             )
-                                             .then(
-                                                 if (isToday && !habit.isCompletedToday) {
-                                                     Modifier.border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(2.5.dp))
-                                                 } else Modifier
-                                             )
-                                     )
-                                 }
+                                                }
+                                            )
+                                            .then(
+                                                if (isToday && !habit.isCompletedToday) {
+                                                    Modifier.border(1.dp, if (isScheduled) accentColor.copy(alpha = 0.5f) else AppTheme.colors.border.copy(alpha = 0.3f), RoundedCornerShape(2.5.dp))
+                                                } else Modifier
+                                            )
+                                    )
+                                }
                             }
                         }
                     }
                 }
                 "BAR_GRAPH" -> {
                     // 7-day Weekly Bar Graph
-                    val days = listOf("M", "T", "W", "T", "F", "S", "S")
+                    val days = listOf("П", "В", "С", "Ч", "П", "С", "В")
                     val weekly = if (habit.weeklyCompletions.size >= 7) {
                         habit.weeklyCompletions.takeLast(7)
                     } else {
@@ -198,6 +204,7 @@ fun DuroHabitGridCard(
                         list[6] = habit.isCompletedToday
                         list
                     }
+                    val scheduleDays = habit.scheduleDays.ifEmpty { (1..7).toSet() }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -206,6 +213,7 @@ fun DuroHabitGridCard(
                     ) {
                         days.forEachIndexed { i, dayLetter ->
                             val done = weekly.getOrElse(i) { false }
+                            val isScheduled = (i + 1) in scheduleDays
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Bottom
@@ -213,17 +221,21 @@ fun DuroHabitGridCard(
                                 Box(
                                     modifier = Modifier
                                         .width(7.dp)
-                                        .height(if (done) 42.dp else 14.dp)
+                                        .height(if (done) 42.dp else if (isScheduled) 14.dp else 8.dp)
                                         .clip(RoundedCornerShape(3.dp))
                                         .background(
-                                            if (done) accentColor else AppTheme.colors.surfaceElevated
+                                            when {
+                                                done -> accentColor
+                                                !isScheduled -> AppTheme.colors.surfaceElevated.copy(alpha = 0.25f)
+                                                else -> AppTheme.colors.surfaceElevated
+                                            }
                                         )
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = dayLetter,
                                     fontSize = 8.sp,
-                                    color = AppTheme.colors.textMuted
+                                    color = if (isScheduled || done) AppTheme.colors.textMuted else AppTheme.colors.textMuted.copy(alpha = 0.35f)
                                 )
                             }
                         }
