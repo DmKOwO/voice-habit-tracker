@@ -150,13 +150,13 @@ class SettingsManager(context: Context) {
     fun getUserPersonaContext(): String {
         val sb = StringBuilder()
         if (userPersonaHardFacts.isNotBlank()) {
-            sb.appendLine("Базовый профиль и стек: $userPersonaHardFacts")
+            sb.appendLine("Обо мне, интересы и сферы жизни: $userPersonaHardFacts")
         }
         if (userPersonaActiveFocus.isNotBlank()) {
-            sb.appendLine("Текущий фокус: $userPersonaActiveFocus")
+            sb.appendLine("Идеи, замыслы и текущий фокус: $userPersonaActiveFocus")
         }
         if (userPersonaMemoryLog.isNotEmpty()) {
-            sb.appendLine("Факты памяти ИИ:")
+            sb.appendLine("Факты памяти и ориентиры:")
             userPersonaMemoryLog.take(15).forEach { sb.appendLine("- $it") }
         }
         return sb.toString().trim()

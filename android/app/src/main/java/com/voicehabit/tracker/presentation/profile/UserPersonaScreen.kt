@@ -37,8 +37,25 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
     var activeFocus by remember(state.userPersonaActiveFocus) { mutableStateOf(state.userPersonaActiveFocus) }
     var newFactText by remember { mutableStateOf("") }
 
-    val quickSkillTags = remember {
-        listOf("Android", "Kotlin", "Compose", "Python", "Backend", "Product", "UI/UX", "System Architect")
+    val quickInterestTags = remember {
+        listOf(
+            "Творчество",
+            "Идеи и проекты",
+            "Философия",
+            "Спорт и тело",
+            "Бизнес",
+            "Книги",
+            "Психология",
+            "Музыка",
+            "Саморазвитие",
+            "Наука",
+            "Дизайн",
+            "Технологии",
+            "Писательство",
+            "Путешествия",
+            "Здоровье",
+            "Финансы"
+        )
     }
 
     Column(
@@ -50,8 +67,8 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         ScreenHeader(
-            title = "Контекст и память ИИ",
-            subtitle = "Персональный контекст, активный фокус и память фактов"
+            title = "Обо мне и контекст ИИ",
+            subtitle = "Интересы, сферы жизни, идеи и память"
         ) {
             viewModel.closeScreen()
         }
@@ -64,7 +81,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 120.dp)
         ) {
-            // БЛОК 1: Базовый профиль (Hard Facts)
+            // БЛОК 1: Обо мне, интересы и сферы жизни
             item(key = "hard_facts_block") {
                 Surface(
                     color = AppTheme.colors.surface,
@@ -77,13 +94,13 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Базовый профиль и стек",
+                            text = "Обо мне: интересы и сферы жизни",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppTheme.colors.textPrimary
                         )
                         Text(
-                            text = "Сферы деятельности, стек технологий, роли и ключевые навыки. Помогает ИИ точно понимать термины и контекст задач.",
+                            text = "Всё, чем вы увлекаетесь, ваши сферы деятельности, интересы, взгляды, принципы и роли. Помогает ИИ глубоко понимать вас и суть ваших мыслей.",
                             fontSize = 12.sp,
                             color = AppTheme.colors.textSecondary,
                             lineHeight = 17.sp
@@ -94,7 +111,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                             onValueChange = { hardFacts = it },
                             placeholder = {
                                 Text(
-                                    "Например: Senior Android Developer, Kotlin, Jetpack Compose, архитектура приложений, основатель стартапа",
+                                    "Сферы интересов, увлечения, деятельность, жизненные ориентиры...",
                                     fontSize = 13.sp,
                                     color = AppTheme.colors.textMuted
                                 )
@@ -107,7 +124,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                         )
 
                         Text(
-                            text = "Быстрое добавление тегов:",
+                            text = "Быстрое добавление сфер и тем:",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = AppTheme.colors.textSecondary
@@ -117,7 +134,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            quickSkillTags.forEach { tag ->
+                            quickInterestTags.forEach { tag ->
                                 Surface(
                                     color = AppTheme.colors.surfaceElevated,
                                     shape = RoundedCornerShape(10.dp),
@@ -140,7 +157,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                 }
             }
 
-            // БЛОК 2: Текущий фокус недели/месяца (Active State)
+            // БЛОК 2: Идеи, замыслы и актуальный фокус
             item(key = "active_focus_block") {
                 Surface(
                     color = AppTheme.colors.surface,
@@ -153,13 +170,13 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Текущий фокус недели/месяца",
+                            text = "Идеи, замыслы и актуальный фокус",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppTheme.colors.textPrimary
                         )
                         Text(
-                            text = "2–3 предложения о текущей работе, приоритетных релизах или жизненных целях на ближайшее время.",
+                            text = "Главные мысли, текущие идеи, гипотезы, проекты или жизненные приоритеты на ближайшее время.",
                             fontSize = 12.sp,
                             color = AppTheme.colors.textSecondary,
                             lineHeight = 17.sp
@@ -170,7 +187,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                             onValueChange = { activeFocus = it },
                             placeholder = {
                                 Text(
-                                    "Например: Релиз v1.2.4 с фокус-движком и Obsidian-синхронизацией. Подготовка к запуску в продакшн.",
+                                    "Главные идеи, проекты в разработке, гипотезы и текущие приоритеты...",
                                     fontSize = 13.sp,
                                     color = AppTheme.colors.textMuted
                                 )
@@ -204,7 +221,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                             color = AppTheme.colors.textPrimary
                         )
                         Text(
-                            text = "Факты, которые ИИ вывел из ваших записей или которые вы сохранили вручную. Вы можете удалить любой факт в один клик.",
+                            text = "Факты, идеи и наблюдения, зафиксированные ИИ из ваших записей или внесённые вами вручную.",
                             fontSize = 12.sp,
                             color = AppTheme.colors.textSecondary,
                             lineHeight = 17.sp
@@ -219,7 +236,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                             OutlinedTextField(
                                 value = newFactText,
                                 onValueChange = { newFactText = it },
-                                placeholder = { Text("Добавить факт...", fontSize = 12.sp, color = AppTheme.colors.textMuted) },
+                                placeholder = { Text("Новая мысль, факт или идея...", fontSize = 12.sp, color = AppTheme.colors.textMuted) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
@@ -253,7 +270,7 @@ fun UserPersonaScreen(viewModel: HomeViewModel) {
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "Память пока пуста. ИИ будет автоматически фиксировать важные факты при разборе ваших голосовых мыслей.",
+                                    text = "Память пока пуста. ИИ будет автоматически сохранять важные факты, интересы и идеи из ваших записей.",
                                     fontSize = 12.sp,
                                     color = AppTheme.colors.textMuted,
                                     modifier = Modifier.padding(14.dp)

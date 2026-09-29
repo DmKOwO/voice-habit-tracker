@@ -154,7 +154,7 @@ fun ProfileMenuSheet(
                 ProfileMenuItem(
                     icon = Icons.Default.Psychology,
                     title = "Контекст и память ИИ",
-                    subtitle = "Базовый профиль, активный фокус и память фактов",
+                    subtitle = "Интересы, сферы жизни, идеи и память",
                     badgeColor = AppTheme.colors.accent,
                     onClick = {
                         onDismiss()
