@@ -56,6 +56,33 @@ fun HabitDetailBottomSheet(
     }
     val deleteInteractions = remember(habit.id) { MutableInteractionSource() }
     val actionInteractions = remember(habit.id, habit.isCompletedToday) { MutableInteractionSource() }
+    var localScheduleDays by remember(habit.id, habit.scheduleDays) {
+        mutableStateOf(habit.scheduleDays.ifEmpty { (1..7).toSet() })
+    }
+    val today = remember { LocalDate.now() }
+    val startDay = remember(today) { today.minusDays(27) }
+    val history = habit.historyDaysCompleted.ifEmpty { List(28) { false } }
+
+    val scheduledCount = remember(localScheduleDays, startDay) {
+        (0 until 28).count { offset ->
+            startDay.plusDays(offset.toLong()).dayOfWeek.value in localScheduleDays
+        }
+    }
+    val completedScheduledCount = remember(localScheduleDays, startDay, history) {
+        (0 until 28).count { offset ->
+            val isScheduled = startDay.plusDays(offset.toLong()).dayOfWeek.value in localScheduleDays
+            val isDone = if (offset < history.size) history[offset] else false
+            isScheduled && isDone
+        }
+    }
+    val completionPercentage = if (scheduledCount == 0) 100 else minOf(100, (completedScheduledCount * 100) / scheduledCount)
+    val scheduleSummary = when {
+        localScheduleDays.size == 7 -> "Каждый день"
+        localScheduleDays == (1..5).toSet() -> "По будням"
+        localScheduleDays == setOf(6, 7) -> "По выходным"
+        else -> "${localScheduleDays.size} дн. в нед."
+    }
+
     // Подтверждение удаления: раньше тап по корзине стирал привычку с первого
     // нажатия без единого вопроса.
     var showDeleteConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -210,15 +237,19 @@ fun HabitDetailBottomSheet(
                     border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
                     modifier = Modifier.weight(1f)
                 ) {
-                    val completedCount = habit.historyDaysCompleted.count { it }
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text("Всего дней", fontSize = 11.sp, color = DuroTextMuted)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "$completedCount из 28",
-                            fontSize = 20.sp,
+                            text = "$completedScheduledCount из $scheduledCount",
+                            fontSize = if ("$completedScheduledCount из $scheduledCount".length > 8) 16.sp else 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = accentColor
+                        )
+                        Text(
+                            text = "по плану",
+                            fontSize = 11.sp,
+                            color = DuroTextSecondary
                         )
                     }
                 }
@@ -234,10 +265,15 @@ fun HabitDetailBottomSheet(
                         Text("Успех", fontSize = 11.sp, color = DuroTextMuted)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${habit.completionPercentage}%",
+                            text = "$completionPercentage%",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = DuroLime
+                        )
+                        Text(
+                            text = "за 28 дней",
+                            fontSize = 11.sp,
+                            color = DuroTextSecondary
                         )
                     }
                 }
@@ -281,18 +317,27 @@ fun HabitDetailBottomSheet(
                                 val isDone = if (idx < history.size) history[idx] else false
                                 val dayDate = startDay.plusDays(idx.toLong())
                                 val isToday = dayDate.isEqual(today)
+                                val isScheduled = dayDate.dayOfWeek.value in localScheduleDays
 
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(
-                                            if (isDone) accentColor
-                                            else Color(0xFF16161F)
+                                            when {
+                                                isDone -> accentColor
+                                                !isScheduled -> Color(0xFF101017)
+                                                else -> Color(0xFF16161F)
+                                            }
                                         )
                                         .border(
                                             width = if (isToday) 2.dp else 1.dp,
-                                            color = if (isToday) DuroOrange else DuroBorder,
+                                            color = when {
+                                                isToday -> DuroOrange
+                                                isDone -> accentColor.copy(alpha = 0.5f)
+                                                !isScheduled -> DuroBorder.copy(alpha = 0.3f)
+                                                else -> DuroBorder
+                                            },
                                             shape = RoundedCornerShape(8.dp)
                                         ),
                                     contentAlignment = Alignment.Center
@@ -300,8 +345,13 @@ fun HabitDetailBottomSheet(
                                     Text(
                                         text = "${dayDate.dayOfMonth}",
                                         fontSize = 11.sp,
-                                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isDone) Color.White else DuroTextMuted
+                                        fontWeight = if (isToday || isDone) FontWeight.Bold else FontWeight.Medium,
+                                        color = when {
+                                            isDone -> Color.White
+                                            !isScheduled -> DuroTextMuted.copy(alpha = 0.35f)
+                                            isToday -> DuroTextPrimary
+                                            else -> DuroTextMuted
+                                        }
                                     )
                                 }
                             }
@@ -323,12 +373,19 @@ fun HabitDetailBottomSheet(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Text(text = "Дни недели", fontSize = 12.sp, color = DuroTextSecondary)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Дни недели", fontSize = 12.sp, color = DuroTextSecondary)
+                    Text(text = scheduleSummary, fontSize = 11.sp, color = accentColor, fontWeight = FontWeight.Medium)
+                }
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                     val dayNames = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
                     (1..7).forEach { day ->
-                        val selected = day in habit.scheduleDays
+                        val selected = day in localScheduleDays
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -336,8 +393,15 @@ fun HabitDetailBottomSheet(
                                 .background(if (selected) accentColor.copy(alpha = 0.25f) else DuroSurface)
                                 .border(1.dp, if (selected) accentColor else DuroBorder, RoundedCornerShape(8.dp))
                                 .clickable {
-                                    val updated = if (selected) habit.scheduleDays - day else habit.scheduleDays + day
-                                    if (updated.isNotEmpty()) viewModel.setHabitSchedule(habit.id, updated)
+                                    val updated = if (selected) {
+                                        if (localScheduleDays.size > 1) localScheduleDays - day else localScheduleDays
+                                    } else {
+                                        localScheduleDays + day
+                                    }
+                                    if (updated != localScheduleDays) {
+                                        localScheduleDays = updated
+                                        viewModel.setHabitSchedule(habit.id, updated)
+                                    }
                                 }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center

@@ -20,10 +20,13 @@ class CalculateStreakUseCase(
     /**
      * @param neutralDays epoch-дни заморозки (G6/G20): не продлевают стрик,
      * но и не разрывают его. Без них пропущенный день обнулял бы серию.
+     * @param scheduleDays дни недели (1 = Пн .. 7 = Вс), в которые привычка запланирована.
+     * Дни отдыха (не запланированные) не разрывают стрик.
      */
     operator fun invoke(
         completedTimestamps: List<Long>,
-        neutralDays: Set<Long> = emptySet()
+        neutralDays: Set<Long> = emptySet(),
+        scheduleDays: Set<Int> = (1..7).toSet()
     ): Int {
         if (completedTimestamps.isEmpty() && neutralDays.isEmpty()) return 0
 
@@ -32,17 +35,22 @@ class CalculateStreakUseCase(
             .toSet()
 
         val today = Instant.ofEpochMilli(now()).atZone(zoneId).toLocalDate().toEpochDay()
+        val safeSchedule = scheduleDays.ifEmpty { (1..7).toSet() }
 
         var streak = 0
         var expectedDay = if (daysSet.contains(today) || neutralDays.contains(today)) today else today - 1
         var guard = 0
         while (guard++ < 365 * 5) {
+            val dayOfWeek = LocalDate.ofEpochDay(expectedDay).dayOfWeek.value
+            val isScheduled = dayOfWeek in safeSchedule
+
             when {
-                neutralDays.contains(expectedDay) -> expectedDay--
                 daysSet.contains(expectedDay) -> {
                     streak++
                     expectedDay--
                 }
+                !isScheduled -> expectedDay--
+                neutralDays.contains(expectedDay) -> expectedDay--
                 else -> break
             }
         }

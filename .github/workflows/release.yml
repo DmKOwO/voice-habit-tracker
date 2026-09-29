@@ -106,12 +106,22 @@ jobs:
 
       # Гейт: релиз не публикуется, если падают unit-тесты. Раньше в CI не было
       # ни одного шага тестов, и зелёный тег всегда публиковал APK.
+      # Секреты подписи нужны и здесь: signingConfig вычисляется на этапе
+      # конфигурации Gradle для любой задачи, иначе упадёт с «нет параметров».
       - name: Run unit tests
         working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew testDebugUnitTest --no-daemon --console=plain
 
       - name: Lint
         working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew lintDebug --no-daemon --console=plain
 
       - name: Build release APK

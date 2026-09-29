@@ -106,9 +106,15 @@ class HabitRepositoryImpl(
 
     /** Пересчитывает стрик и пишет его отдельным UPDATE — история логов не затрагивается. */
     private suspend fun recomputeStreak(habitId: String) {
+        val habit = habitDao.getHabitById(habitId)
         val logs = habitDao.getLogsForHabit(habitId)
         val neutral = frozenDaysProvider?.invoke() ?: emptySet()
-        val newStreak = calculateStreakUseCase(logs.map { it.completedAt }, neutral)
+        val scheduleDaysSet = habit?.scheduleDays?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?.toSet()
+            ?.ifEmpty { (1..7).toSet() }
+            ?: (1..7).toSet()
+        val newStreak = calculateStreakUseCase(logs.map { it.completedAt }, neutral, scheduleDaysSet)
         habitDao.updateHabitStreak(habitId, newStreak)
         habitDao.updateBestStreak(habitId, newStreak)
     }
@@ -270,6 +276,7 @@ class HabitRepositoryImpl(
     override suspend fun updateScheduleAndTags(id: String, days: Set<Int>, tags: List<String>) {
         val safeDays = days.ifEmpty { (1..7).toSet() }
         habitDao.updateScheduleAndTags(id, safeDays.sorted().joinToString(","), tags.joinToString(","))
+        recomputeStreak(id)
     }
 
     private companion object {
