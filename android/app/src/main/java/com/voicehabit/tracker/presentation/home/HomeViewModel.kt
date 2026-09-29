@@ -893,6 +893,24 @@ class HomeViewModel @JvmOverloads constructor(
                     _state.update {
                         val next = it.focusTimerSeconds - 1
                         if (next <= 0) {
+                            val durationMin = it.focusTimerTotalSeconds / 60
+                            viewModelScope.launch(dispatchers.io) {
+                                extras.saveFocusSession(
+                                    com.voicehabit.tracker.domain.model.FocusSession(
+                                        id = extras.newFocusId(),
+                                        taskId = null,
+                                        habitId = null,
+                                        label = "Фокус-таймер",
+                                        durationMin = durationMin,
+                                        completed = true
+                                    )
+                                )
+                                withContext(dispatchers.main) {
+                                    showSnackbar("Фокус завершён ($durationMin мин)")
+                                    speak("Фокус завершён.")
+                                    evaluateAchievements()
+                                }
+                            }
                             it.copy(
                                 focusTimerSeconds = it.focusTimerTotalSeconds,
                                 isFocusTimerRunning = false,
@@ -1916,7 +1934,8 @@ class HomeViewModel @JvmOverloads constructor(
                     label = label.trim().ifBlank { settings.userPersonaActiveFocus.trim().ifBlank { "Фокус-сессия" } },
                     taskId = taskId,
                     habitId = habitId
-                )
+                ),
+                screen = AppScreen.FOCUS
             )
         }
         startFocusTimerLoop(totalSec)
@@ -2050,7 +2069,8 @@ class HomeViewModel @JvmOverloads constructor(
                     currentStep = smartInitialStep,
                     completedSteps = emptyList(),
                     isStepLoading = settings.effectiveGeminiApiKey.isNotBlank()
-                )
+                ),
+                screen = AppScreen.FOCUS
             )
         }
         startFocusTimerLoop(totalSec)

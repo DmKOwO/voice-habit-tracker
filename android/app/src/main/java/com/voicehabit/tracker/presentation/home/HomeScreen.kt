@@ -815,36 +815,6 @@ fun RhythmView(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Adaptive Focus на первом экране: раньше движок был закопан в «Обзоре»,
-        // хотя это единственная фича категории. Компактная плашка запуска.
-        if (filteredHabits.isNotEmpty() || displayTasks.isNotEmpty()) {
-            Surface(
-                color = AppTheme.colors.surfaceElevated,
-                shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
-                modifier = Modifier.fillMaxWidth().clickable {
-                    haptics.select()
-                    viewModel.startAdaptiveFocus("Быстрый фокус")
-                }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("Фокус", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AppTheme.colors.textPrimary)
-                    Text(
-                        "адаптивный спринт под текущие дела",
-                        fontSize = 12.sp,
-                        color = AppTheme.colors.textSecondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text("Старт", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTheme.colors.accent)
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
         // «Залежалось»: задачи старше 3 дней без выполнения + контекст,
         // откуда они («ты говорил во вторник…» — по дате создания).
         val staleTasks = remember(displayTasks) {

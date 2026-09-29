@@ -422,10 +422,11 @@ fun OverviewScreen(
 
         // Adaptive Sprint Flow Engine Prompt Card
         item {
+            val run = state.focusRun
             Surface(
-                color = AppTheme.colors.surfaceElevated.copy(alpha = 0.6f),
+                color = if (run != null) AppTheme.colors.accent.copy(alpha = 0.12f) else AppTheme.colors.surfaceElevated.copy(alpha = 0.6f),
                 shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (run != null) AppTheme.colors.accent else AppTheme.colors.border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
@@ -438,13 +439,13 @@ fun OverviewScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Surface(
-                        color = AppTheme.colors.accent.copy(alpha = 0.12f),
+                        color = AppTheme.colors.accent.copy(alpha = if (run != null) 0.25f else 0.12f),
                         shape = CircleShape,
                         modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Bolt,
+                                imageVector = if (run != null) Icons.Default.PlayArrow else Icons.Default.Bolt,
                                 contentDescription = null,
                                 tint = AppTheme.colors.accent,
                                 modifier = Modifier.size(22.dp)
@@ -454,17 +455,29 @@ fun OverviewScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Адаптивный спринт (Flow Engine)",
+                            text = if (run != null) {
+                                val mm = run.remainingSec / 60
+                                val ss = run.remainingSec % 60
+                                "Активный спринт: %02d:%02d".format(mm, ss)
+                            } else {
+                                "Адаптивный спринт (Flow Engine)"
+                            },
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppTheme.colors.textPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Калибровка состояния, физические шаги и Focus Guard",
+                            text = if (run != null) {
+                                run.currentStep ?: run.label
+                            } else {
+                                "Калибровка состояния, физические шаги и Focus Guard"
+                            },
                             fontSize = 12.sp,
                             color = AppTheme.colors.textSecondary,
-                            lineHeight = 16.sp
+                            lineHeight = 16.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
 
