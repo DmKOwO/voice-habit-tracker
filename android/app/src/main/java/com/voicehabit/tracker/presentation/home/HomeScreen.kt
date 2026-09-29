@@ -597,7 +597,9 @@ private fun EmptyRhythmView(
                 haptics.confirm()
                 onCreateHabit()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
+            // Фиксированная терракота: DuroOrange вычищен в белый (см. Color.kt),
+            // а акцент темы тоже бывает светлым — белый текст пропадал.
+            colors = ButtonDefaults.buttonColors(containerColor = MarsRustAccent),
             shape = RoundedCornerShape(14.dp)
         ) {
             Text("Завести первую привычку", color = Color.White, fontWeight = FontWeight.Bold)

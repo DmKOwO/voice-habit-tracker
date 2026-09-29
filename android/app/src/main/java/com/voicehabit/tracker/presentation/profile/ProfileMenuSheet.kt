@@ -79,6 +79,10 @@ fun ProfileMenuSheet(
             onDismiss()
             viewModel.openScreen(AppScreen.ABOUT)
         },
+        onOpenMore = {
+            onDismiss()
+            viewModel.openScreen(AppScreen.HUB)
+        },
         onDismiss = onDismiss,
         modifier = modifier
     )
@@ -97,6 +101,7 @@ fun ProfileMenuSheet(
     onOpenQueue: () -> Unit = {},
     onOpenOperationsLog: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
+    onOpenMore: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -224,6 +229,17 @@ fun ProfileMenuSheet(
                     onClick = {
                         onDismiss()
                         onOpenAbout()
+                    }
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.Apps,
+                    title = "Ещё",
+                    subtitle = "Поиск по всему, отчёты, выводы, импорт",
+                    badgeColor = AppTheme.colors.accent,
+                    onClick = {
+                        onDismiss()
+                        onOpenMore()
                     }
                 )
             }
