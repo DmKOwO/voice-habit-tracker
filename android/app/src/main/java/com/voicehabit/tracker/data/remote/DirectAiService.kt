@@ -256,12 +256,22 @@ $personaSection
         }
     }
 
+    enum class FocusStepType {
+        INITIAL,
+        NEXT,
+        ALTERNATIVE,
+        UNBLOCK
+    }
+
     /**
-     * Flow Engine: генерирует ОДНО атомарное физическое действие на 5–7 минут.
+     * Flow Engine: генерирует ОДНО атомарное физическое действие на 5–7 минут
+     * с учетом этапа работы (старт, логическое развитие, смена формата, снятие затыка).
      */
     suspend fun decomposeFocusStep(
         taskOrGoal: String,
-        currentStep: String?,
+        currentStep: String? = null,
+        completedSteps: List<String> = emptyList(),
+        stepType: FocusStepType = if (currentStep.isNullOrBlank()) FocusStepType.INITIAL else FocusStepType.NEXT,
         geminiApiKey: String,
         userPersonaContext: String = ""
     ): Result<String> = withContext(Dispatchers.IO) {
@@ -269,19 +279,67 @@ $personaSection
             return@withContext Result.failure(IllegalStateException("No Gemini API key"))
         }
         try {
-            val prompt = """
+            val prompt = when (stepType) {
+                FocusStepType.INITIAL -> """
 Ты — Flow Engine штурман глубокой работы.
-Пользователь работает над задачей: "$taskOrGoal".
-${if (!currentStep.isNullOrBlank()) "Предыдущий шаг: \"$currentStep\"." else "Это старт работы."}
-${if (userPersonaContext.isNotBlank()) "Контекст пользователя: $userPersonaContext" else ""}
+Пользователь начинает спринт над целью: "$taskOrGoal".
+${if (userPersonaContext.isNotBlank()) "Контекст и память пользователя (интересы, идеи, текущий фокус):\n$userPersonaContext" else ""}
 
-Сформулируй ОДНО единственное атомарное физическое действие на 5–7 минут.
+Сформулируй ПЕРВОЕ конкретное атомарное физическое действие на 5–7 минут.
 Требования:
-1. Конкретный глагол + физический объект (например: «Открыть файл README и выписать 3 пункта структуры», «Написать черновик первого метода без тестов»).
-2. Выполнимо ровно за 5–7 минут. Никаких абстракций.
-3. Строго без эмодзи, без подбадриваний и без жалости.
-4. Верни ТОЛЬКО текст этого действия (одно предложение), без кавычек и префиксов.
-            """.trimIndent()
+1. Конкретный глагол в инфинитиве + осязаемый объект (например: «Открыть список слов B1 и выписать 5 глаголов с предлогами», «Создать черновик документа и набросать 3 раздела»).
+2. Выполнимо ровно за 5–7 минут с минимальным порогом входа.
+3. НИКАКИХ абстрактных мета-советов вроде «Открыть материалы», «Приступить к работе» или «Начать выполнение».
+4. Строго без эмодзи.
+5. Верни ТОЛЬКО текст этого действия (одно предложение), без кавычек и префиксов.
+                """.trimIndent()
+
+                FocusStepType.NEXT -> """
+Ты — Flow Engine штурман глубокой работы.
+Пользователь выполняет спринт над целью: "$taskOrGoal".
+Только что успешно завершён шаг: "$currentStep".
+${if (completedSteps.isNotEmpty()) "Ранее выполненные шаги в этом спринте: ${completedSteps.joinToString("; ")}" else ""}
+${if (userPersonaContext.isNotBlank()) "Контекст и память пользователя:\n$userPersonaContext" else ""}
+
+Сформулируй СЛЕДУЮЩИЙ логический шаг на 5–7 минут, развивающий результат предыдущего шага.
+Пример: если предыдущий шаг был «Открыть список слов B1 и выписать 5 глаголов с предлогами», то следующий шаг — «Составить по 1 предложению с каждым из 5 глаголов».
+Требования:
+1. Логическое продолжение результата предыдущего шага.
+2. Конкретный глагол + физический объект на 5–7 минут.
+3. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать абстрактные мета-фразы: «Выполнить следующий конкретный шаг по задаче», «Продолжить работу над целью» и т.п. Назови точное физическое действие!
+4. Строго без эмодзи.
+5. Верни ТОЛЬКО текст действия одним предложением без кавычек.
+                """.trimIndent()
+
+                FocusStepType.ALTERNATIVE -> """
+Ты — Flow Engine штурман глубокой работы.
+Пользователь работает над целью: "$taskOrGoal".
+Пользователю НЕ ПОДОШЁЛ текущий шаг или формат работы: "$currentStep".
+${if (userPersonaContext.isNotBlank()) "Контекст и память пользователя:\n$userPersonaContext" else ""}
+
+Сформулируй АЛЬТЕРНАТИВНЫЙ шаг на 5–7 минут для той же цели, ОБЯЗАТЕЛЬНО СМЕНИВ ФОРМАТ РАБОТЫ (МОДАЛЬНОСТЬ).
+Пример: если текущий шаг был письменным («Выписать 5 глаголов»), то альтернативный со сменой формата — «Включить аудиодиалог B1 на 5 минут и выписать незнакомые фразы» (смена на аудирование), или устное проговаривание, или визуальная схема/набросок.
+Требования:
+1. Смена формата: вместо письма/кода — аудио, устная речь, просмотр примера, схема или быстрый набросок.
+2. Выполнимо за 5–7 минут.
+3. НИКАКИХ абстрактных фраз («Сделать альтернативный шаг», «Попробовать по-другому»).
+4. Строго без эмодзи.
+5. Верни ТОЛЬКО текст действия одним предложением без кавычек.
+                """.trimIndent()
+
+                FocusStepType.UNBLOCK -> """
+Ты — Flow Engine штурман глубокой работы (Focus Guard).
+Пользователь столкнулся со ступором или затыком на шаге: "$currentStep" (цель: "$taskOrGoal").
+${if (userPersonaContext.isNotBlank()) "Контекст и память пользователя:\n$userPersonaContext" else ""}
+
+Сформулируй УЛЬТРА-ПРОСТОЕ действие на 1–2 минуты, которое снимает психологическое сопротивление и затык (микро-действие с нулевым когнитивным барьером: открыть словарь и найти 1 пример предложения, набросать 1 черновую строку без проверки, прочитать 1 абзац вслух).
+Требования:
+1. Начинается со слов «Снять затык: ...» с предельно простым действием на 2 минуты.
+2. Строго без абстракций («подумать», «сосредоточиться»).
+3. Строго без эмодзи.
+4. Верни ТОЛЬКО текст действия одним предложением без кавычек.
+                """.trimIndent()
+            }
 
             val requestJson = JsonObject().apply {
                 val contentsArray = com.google.gson.JsonArray().apply {
@@ -297,16 +355,33 @@ ${if (userPersonaContext.isNotBlank()) "Контекст пользовател�
                 add("contents", contentsArray)
             }
 
-            val request = Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiApiKey")
-                .post(requestJson.toString().toRequestBody("application/json".toMediaType()))
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val body = requestJson.toString().toRequestBody(mediaType)
+
+            val primaryUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$geminiApiKey"
+            val fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$geminiApiKey"
+
+            var request = Request.Builder()
+                .url(primaryUrl)
+                .post(body)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string() ?: ""
+            var response = client.newCall(request).execute()
+            var responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                request = Request.Builder()
+                    .url(fallbackUrl)
+                    .post(body)
+                    .build()
+                response = client.newCall(request).execute()
+                responseBody = response.body?.string() ?: ""
+            }
+
             if (!response.isSuccessful) {
                 return@withContext Result.failure(Exception("Gemini error (${response.code}): $responseBody"))
             }
+
             val json = JsonParser.parseString(responseBody).asJsonObject
             val text = json.getAsJsonArray("candidates")
                 ?.get(0)?.asJsonObject
@@ -315,7 +390,12 @@ ${if (userPersonaContext.isNotBlank()) "Контекст пользовател�
                 ?.get(0)?.asJsonObject
                 ?.get("text")?.asString?.trim() ?: ""
 
-            Result.success(text.replace("\"", "").trim())
+            val cleaned = text
+                .replace("\"", "")
+                .replace("**", "")
+                .lines().firstOrNull { it.isNotBlank() }?.trim() ?: ""
+
+            Result.success(cleaned)
         } catch (e: Exception) {
             Result.failure(e)
         }

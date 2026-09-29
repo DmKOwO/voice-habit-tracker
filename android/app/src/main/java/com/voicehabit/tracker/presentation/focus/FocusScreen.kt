@@ -131,21 +131,56 @@ fun FocusScreen(viewModel: HomeViewModel) {
                         lineHeight = 17.sp
                     )
 
+                    val defaultFocus = state.userPersonaActiveFocus.trim()
+                    val placeholderText = if (defaultFocus.isNotBlank()) defaultFocus else "Например: Изучение vocabulary английского"
+
                     OutlinedTextField(
                         value = label,
                         onValueChange = { label = it },
                         label = { Text("Над чем работаем", fontSize = 12.sp, color = AppTheme.colors.textSecondary) },
-                        placeholder = { Text("Например: Дописать архитектурный модуль", fontSize = 13.sp, color = AppTheme.colors.textMuted) },
+                        placeholder = { Text(placeholderText, fontSize = 13.sp, color = AppTheme.colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
                         colors = duroTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    if (defaultFocus.isNotBlank() && label.isBlank()) {
+                        Surface(
+                            color = AppTheme.colors.surfaceElevated,
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.accent.copy(alpha = 0.35f)),
+                            modifier = Modifier.clickable { label = defaultFocus }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Psychology,
+                                    contentDescription = null,
+                                    tint = AppTheme.colors.accent,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Фокус из профиля: $defaultFocus",
+                                    fontSize = 11.sp,
+                                    color = AppTheme.colors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
                     Button(
                         onClick = {
+                            val targetGoal = label.trim().ifBlank {
+                                state.userPersonaActiveFocus.trim().ifBlank { "Фокус-сессия" }
+                            }
                             viewModel.startAdaptiveFocus(
-                                label.ifBlank { "Глубокая работа" },
+                                targetGoal,
                                 taskId,
                                 habitId
                             )
@@ -159,10 +194,13 @@ fun FocusScreen(viewModel: HomeViewModel) {
                             .fillMaxWidth()
                             .height(48.dp)
                     ) {
+                        val buttonGoal = label.trim().ifBlank { state.userPersonaActiveFocus.trim() }
                         Text(
-                            text = "Запустить Адаптивный Спринт",
+                            text = if (buttonGoal.isNotBlank()) "Запустить спринт: $buttonGoal" else "Запустить Адаптивный Спринт",
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -252,6 +290,11 @@ fun FocusScreen(viewModel: HomeViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
+                        .clickable {
+                            if (session.label.isNotBlank()) {
+                                label = session.label
+                            }
+                        }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -369,13 +412,27 @@ private fun RunningFocusSession(
                     modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "ТЕКУЩИЙ ШАГ (5–7 МИН)",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppTheme.colors.accent,
-                        letterSpacing = 1.sp
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "ТЕКУЩИЙ ШАГ (5–7 МИН)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppTheme.colors.accent,
+                            letterSpacing = 1.sp
+                        )
+                        if (run.isStepLoading) {
+                            Text(
+                                text = "ИИ уточняет действие...",
+                                fontSize = 10.sp,
+                                color = AppTheme.colors.accent,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                     Text(
                         text = run.currentStep ?: run.label,
                         fontSize = 14.sp,
@@ -390,6 +447,7 @@ private fun RunningFocusSession(
                     ) {
                         Button(
                             onClick = { viewModel.completeCurrentFocusStep() },
+                            enabled = !run.isStepLoading,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = AppTheme.colors.accent,
                                 contentColor = AppTheme.colors.onAccent
@@ -401,6 +459,7 @@ private fun RunningFocusSession(
                         }
                         OutlinedButton(
                             onClick = { viewModel.overrideCurrentFocusStep() },
+                            enabled = !run.isStepLoading,
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.weight(1f).height(40.dp)
                         ) {
@@ -416,23 +475,24 @@ private fun RunningFocusSession(
             Surface(
                 color = AppTheme.colors.surfaceElevated,
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.accent.copy(alpha = 0.5f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.accent.copy(alpha = 0.4f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Голосовой штурман: причина паузы",
+                        text = "Пауза спринта • Focus Guard",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = AppTheme.colors.textPrimary
                     )
                     Text(
-                        text = "Помочь продолжить движение или подождать?",
+                        text = "Таймер остановлен. Если возник затык или сложность, ИИ предложит простое действие на 2 минуты:",
                         fontSize = 11.sp,
-                        color = AppTheme.colors.textSecondary
+                        color = AppTheme.colors.textSecondary,
+                        lineHeight = 16.sp
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -440,18 +500,21 @@ private fun RunningFocusSession(
                     ) {
                         Button(
                             onClick = { viewModel.resolveFocusBlocker() },
-                            colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent, contentColor = AppTheme.colors.onAccent),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppTheme.colors.accent,
+                                contentColor = AppTheme.colors.onAccent
+                            ),
                             shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(38.dp)
                         ) {
-                            Text("Затык в задаче", fontSize = 11.sp)
+                            Text("Снять затык (ИИ)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         OutlinedButton(
                             onClick = { viewModel.confirmDistraction() },
                             shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).height(38.dp)
                         ) {
-                            Text("Отвлекли", fontSize = 11.sp, color = AppTheme.colors.textSecondary)
+                            Text("Просто пауза", fontSize = 11.sp, color = AppTheme.colors.textSecondary)
                         }
                     }
                 }

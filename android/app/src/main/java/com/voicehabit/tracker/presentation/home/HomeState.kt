@@ -63,7 +63,8 @@ data class FocusRun(
     val isAdaptiveMicroSprint: Boolean = false,
     val currentStep: String? = null,
     val completedSteps: List<String> = emptyList(),
-    val showDebriefModal: Boolean = false
+    val showDebriefModal: Boolean = false,
+    val isStepLoading: Boolean = false
 ) {
     val progress: Float get() = if (totalSec <= 0) 0f else 1f - remainingSec.toFloat() / totalSec
 }

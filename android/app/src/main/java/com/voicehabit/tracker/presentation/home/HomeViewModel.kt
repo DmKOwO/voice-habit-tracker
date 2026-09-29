@@ -10,6 +10,7 @@ import com.voicehabit.tracker.core.logging.AppLogger
 import com.voicehabit.tracker.core.logging.LogLevel
 import com.voicehabit.tracker.core.di.AppContainer
 import com.voicehabit.tracker.data.local.SettingsManager
+import com.voicehabit.tracker.data.remote.DirectAiService.FocusStepType
 import com.voicehabit.tracker.data.remote.OfflineVoiceParser
 import com.voicehabit.tracker.domain.model.DigestRecord
 import com.voicehabit.tracker.domain.model.Habit
@@ -1668,7 +1669,7 @@ class HomeViewModel @JvmOverloads constructor(
                 focusRun = FocusRun(
                     totalSec = totalSec,
                     remainingSec = totalSec,
-                    label = label,
+                    label = label.trim().ifBlank { settings.userPersonaActiveFocus.trim().ifBlank { "Фокус-сессия" } },
                     taskId = taskId,
                     habitId = habitId
                 )
@@ -1696,13 +1697,100 @@ class HomeViewModel @JvmOverloads constructor(
         return if (isFatigued) MentalEnergy.FATIGUED else MentalEnergy.NORMAL
     }
 
+    /** Сборка всестороннего контекста пользователя для ИИ (профиль, идеи, память, дневник, задачи). */
+    fun buildFullAiFocusContext(): String {
+        val sb = StringBuilder()
+        val persona = settings.getUserPersonaContext()
+        if (persona.isNotBlank()) {
+            sb.appendLine(persona)
+        }
+        val recentThoughts = _state.value.digests.take(3)
+        if (recentThoughts.isNotEmpty()) {
+            sb.appendLine("Недавние мысли и темы из дневника:")
+            recentThoughts.forEach { d ->
+                sb.appendLine("- ${d.title}: ${d.gist.take(120)}")
+            }
+        }
+        val activeTasks = _state.value.tasks.filter { !it.isCompleted }.take(4)
+        if (activeTasks.isNotEmpty()) {
+            sb.appendLine("Актуальные открытые задачи:")
+            activeTasks.forEach { t ->
+                sb.appendLine("- ${t.title}")
+            }
+        }
+        return sb.toString().trim()
+    }
+
+    /** Локальный смысловой синтезатор микро-действий (гарантирует отсутствие шаблонных абстракций). */
+    fun generateSmartSemanticStep(
+        goal: String,
+        previousStep: String?,
+        type: FocusStepType
+    ): String {
+        val lowerGoal = goal.lowercase(Locale.ROOT)
+        val isLanguageOrStudy = lowerGoal.contains("язык") || lowerGoal.contains("english") ||
+            lowerGoal.contains("английск") || lowerGoal.contains("слов") ||
+            lowerGoal.contains("vocab") || lowerGoal.contains("граммат") || lowerGoal.contains("учеб")
+        val isCodeOrDev = lowerGoal.contains("код") || lowerGoal.contains("проект") ||
+            lowerGoal.contains("разработ") || lowerGoal.contains("архитектур") ||
+            lowerGoal.contains("модул") || lowerGoal.contains("фич") || lowerGoal.contains("баг")
+        val isWritingOrIdea = lowerGoal.contains("стать") || lowerGoal.contains("текст") ||
+            lowerGoal.contains("пост") || lowerGoal.contains("иде") ||
+            lowerGoal.contains("дневник") || lowerGoal.contains("мысл") || lowerGoal.contains("книг")
+
+        return when (type) {
+            FocusStepType.INITIAL -> {
+                when {
+                    isLanguageOrStudy -> "Открыть список материалов по «$goal» и выписать первые 5 ключевых элементов"
+                    isCodeOrDev -> "Открыть проект и записать 3 ключевые точки реализации в черновик"
+                    isWritingOrIdea -> "Открыть черновик и сформулировать 3 главных тезиса одной строкой"
+                    else -> "Сфокусироваться на «$goal»: открыть материалы и выписать первые 3 пункта"
+                }
+            }
+            FocusStepType.NEXT -> {
+                when {
+                    isLanguageOrStudy -> "Составить по 1 практическому примеру или предложению с каждым элементом"
+                    isCodeOrDev -> "Написать реализацию первой точки без оптимизаций и тестов"
+                    isWritingOrIdea -> "Развернуть первый тезис в 2 предложения своими словами"
+                    else -> "Взять первый пункт из выписанных по «$goal» и выполнить черновой вариант"
+                }
+            }
+            FocusStepType.ALTERNATIVE -> {
+                when {
+                    isLanguageOrStudy -> "Сменить формат: включить аудио или диалог по «$goal» на 5 минут и уловить 3 фразы"
+                    isCodeOrDev -> "Сменить фокус: открыть документацию или схему и проследить путь данных глазами"
+                    isWritingOrIdea -> "Сменить формат: наговорить черновой вариант мысли вслух за 3 минуты"
+                    else -> "Сменить формат по «$goal»: набросать схему на листе или проговорить план вслух"
+                }
+            }
+            FocusStepType.UNBLOCK -> {
+                when {
+                    isLanguageOrStudy -> "Снять затык: открыть словарь и найти ровно 1 пример использования"
+                    isCodeOrDev -> "Снять затык: открыть нужный файл и написать 1 строку комментария к коду"
+                    isWritingOrIdea -> "Снять затык: записать самое первое, пусть даже неидеальное предложение"
+                    else -> "Снять затык: записать ровно 1 простое действие на листе бумаги за 1 минуту"
+                }
+            }
+        }
+    }
+
     /**
      * Запуск Адаптивного Спринта (Flow Engine).
+     * Автоматически подтягивает фокус из профиля, если поле оставлено пустым.
      */
     fun startAdaptiveFocus(label: String, taskId: String? = null, habitId: String? = null) {
+        val resolvedLabel = label.trim().ifBlank {
+            settings.userPersonaActiveFocus.trim().ifBlank {
+                _state.value.tasks.firstOrNull { !it.isCompleted }?.title ?: "Фокус-сессия"
+            }
+        }
         val energy = detectMentalState()
         val durationMin = if (energy == MentalEnergy.FATIGUED) 15 else 25
-        val initialStep = "Открыть материалы и подготовить черновик: $label"
+        val smartInitialStep = generateSmartSemanticStep(
+            goal = resolvedLabel,
+            previousStep = null,
+            type = FocusStepType.INITIAL
+        )
 
         focusTicker?.cancel()
         val totalSec = durationMin * 60
@@ -1711,12 +1799,13 @@ class HomeViewModel @JvmOverloads constructor(
                 focusRun = FocusRun(
                     totalSec = totalSec,
                     remainingSec = totalSec,
-                    label = label,
+                    label = resolvedLabel,
                     taskId = taskId,
                     habitId = habitId,
                     isAdaptiveMicroSprint = true,
-                    currentStep = initialStep,
-                    completedSteps = emptyList()
+                    currentStep = smartInitialStep,
+                    completedSteps = emptyList(),
+                    isStepLoading = settings.effectiveGeminiApiKey.isNotBlank()
                 )
             )
         }
@@ -1724,18 +1813,24 @@ class HomeViewModel @JvmOverloads constructor(
 
         // Фоново уточняем атомарный шаг через Gemini при наличии API-ключа
         if (settings.effectiveGeminiApiKey.isNotBlank()) {
+            val fullContext = buildFullAiFocusContext()
             viewModelScope.launch(dispatchers.io) {
                 val enhanced = directAiService.decomposeFocusStep(
-                    taskOrGoal = label,
+                    taskOrGoal = resolvedLabel,
                     currentStep = null,
+                    completedSteps = emptyList(),
+                    stepType = FocusStepType.INITIAL,
                     geminiApiKey = settings.effectiveGeminiApiKey,
-                    userPersonaContext = settings.getUserPersonaContext()
+                    userPersonaContext = fullContext
                 ).getOrNull()
-                if (!enhanced.isNullOrBlank()) {
-                    withContext(dispatchers.main) {
-                        _state.update { s ->
-                            s.copy(focusRun = s.focusRun?.copy(currentStep = enhanced))
-                        }
+                withContext(dispatchers.main) {
+                    _state.update { s ->
+                        s.copy(
+                            focusRun = s.focusRun?.copy(
+                                currentStep = enhanced?.takeIf { it.isNotBlank() } ?: s.focusRun?.currentStep,
+                                isStepLoading = false
+                            )
+                        )
                     }
                 }
             }
@@ -1764,42 +1859,88 @@ class HomeViewModel @JvmOverloads constructor(
         val run = _state.value.focusRun ?: return
         val step = run.currentStep ?: return
         val updatedSteps = run.completedSteps + step
-        val nextStepFallback = "Выполнить следующий конкретный шаг по задаче"
+        val smartNextStep = generateSmartSemanticStep(
+            goal = run.label,
+            previousStep = step,
+            type = FocusStepType.NEXT
+        )
 
         _state.update { s ->
             s.copy(
                 focusRun = s.focusRun?.copy(
                     completedSteps = updatedSteps,
-                    currentStep = nextStepFallback
+                    currentStep = smartNextStep,
+                    isStepLoading = settings.effectiveGeminiApiKey.isNotBlank()
                 )
             )
         }
 
         if (settings.effectiveGeminiApiKey.isNotBlank()) {
+            val fullContext = buildFullAiFocusContext()
             viewModelScope.launch(dispatchers.io) {
                 val nextStepAi = directAiService.decomposeFocusStep(
                     taskOrGoal = run.label,
                     currentStep = step,
+                    completedSteps = updatedSteps,
+                    stepType = FocusStepType.NEXT,
                     geminiApiKey = settings.effectiveGeminiApiKey,
-                    userPersonaContext = settings.getUserPersonaContext()
+                    userPersonaContext = fullContext
                 ).getOrNull()
-                if (!nextStepAi.isNullOrBlank()) {
-                    withContext(dispatchers.main) {
-                        _state.update { s ->
-                            s.copy(focusRun = s.focusRun?.copy(currentStep = nextStepAi))
-                        }
+                withContext(dispatchers.main) {
+                    _state.update { s ->
+                        s.copy(
+                            focusRun = s.focusRun?.copy(
+                                currentStep = nextStepAi?.takeIf { it.isNotBlank() } ?: s.focusRun?.currentStep,
+                                isStepLoading = false
+                            )
+                        )
                     }
                 }
             }
         }
     }
 
-    /** Переопределение в один тап: сменить шаг без объяснений. */
+    /** Переопределение в один тап: сменить формат работы (смена модальности). */
     fun overrideCurrentFocusStep(customStep: String? = null) {
         val run = _state.value.focusRun ?: return
-        val newStep = customStep?.takeIf { it.isNotBlank() } ?: "Сделать альтернативный короткий шаг"
+        val currentStep = run.currentStep
+        val smartAltStep = customStep?.takeIf { it.isNotBlank() } ?: generateSmartSemanticStep(
+            goal = run.label,
+            previousStep = currentStep,
+            type = FocusStepType.ALTERNATIVE
+        )
+
         _state.update { s ->
-            s.copy(focusRun = s.focusRun?.copy(currentStep = newStep))
+            s.copy(
+                focusRun = s.focusRun?.copy(
+                    currentStep = smartAltStep,
+                    isStepLoading = settings.effectiveGeminiApiKey.isNotBlank()
+                )
+            )
+        }
+
+        if (settings.effectiveGeminiApiKey.isNotBlank()) {
+            val fullContext = buildFullAiFocusContext()
+            viewModelScope.launch(dispatchers.io) {
+                val altStepAi = directAiService.decomposeFocusStep(
+                    taskOrGoal = run.label,
+                    currentStep = currentStep,
+                    completedSteps = run.completedSteps,
+                    stepType = FocusStepType.ALTERNATIVE,
+                    geminiApiKey = settings.effectiveGeminiApiKey,
+                    userPersonaContext = fullContext
+                ).getOrNull()
+                withContext(dispatchers.main) {
+                    _state.update { s ->
+                        s.copy(
+                            focusRun = s.focusRun?.copy(
+                                currentStep = altStepAi?.takeIf { it.isNotBlank() } ?: s.focusRun?.currentStep,
+                                isStepLoading = false
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -1816,18 +1957,49 @@ class HomeViewModel @JvmOverloads constructor(
         }
     }
 
-    /** Focus Guard: [Затык в задаче] разбивает шаг на 2-минутное микро-действие. */
+    /** Focus Guard: [Затык в задаче] генерирует 2-минутное микро-действие для снятия ступора. */
     fun resolveFocusBlocker() {
         val run = _state.value.focusRun ?: return
-        val microStep = "Снять затык: записать 1 простое действие или черновик за 2 минуты"
+        val currentStep = run.currentStep
+        val smartUnblock = generateSmartSemanticStep(
+            goal = run.label,
+            previousStep = currentStep,
+            type = FocusStepType.UNBLOCK
+        )
+
         _state.update { s ->
             s.copy(
                 focusRun = s.focusRun?.copy(
                     isPaused = false,
                     pauseReasonPrompt = false,
-                    currentStep = microStep
+                    currentStep = smartUnblock,
+                    isStepLoading = settings.effectiveGeminiApiKey.isNotBlank()
                 )
             )
+        }
+
+        if (settings.effectiveGeminiApiKey.isNotBlank()) {
+            val fullContext = buildFullAiFocusContext()
+            viewModelScope.launch(dispatchers.io) {
+                val unblockAi = directAiService.decomposeFocusStep(
+                    taskOrGoal = run.label,
+                    currentStep = currentStep,
+                    completedSteps = run.completedSteps,
+                    stepType = FocusStepType.UNBLOCK,
+                    geminiApiKey = settings.effectiveGeminiApiKey,
+                    userPersonaContext = fullContext
+                ).getOrNull()
+                withContext(dispatchers.main) {
+                    _state.update { s ->
+                        s.copy(
+                            focusRun = s.focusRun?.copy(
+                                currentStep = unblockAi?.takeIf { it.isNotBlank() } ?: s.focusRun?.currentStep,
+                                isStepLoading = false
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 
