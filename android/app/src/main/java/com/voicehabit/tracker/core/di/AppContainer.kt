@@ -64,6 +64,20 @@ class AppContainer(
     /** H1: конспекты свободного потока — «диктофон с выжимкой». */
     val digestRepository by lazy { com.voicehabit.tracker.data.repository.DigestRepository(database) }
 
+    /** Обучение на правках (#6): личный слой поверх правил разбора. */
+    val correctionStore by lazy {
+        com.voicehabit.tracker.core.analysis.CorrectionStore(
+            appContext.getSharedPreferences("corrections", android.content.Context.MODE_PRIVATE)
+        )
+    }
+
+    /** Приватная аналитика: счётчики на устройстве, никакой сети. */
+    val usageAnalytics by lazy {
+        com.voicehabit.tracker.core.analysis.UsageAnalytics(
+            appContext.getSharedPreferences("usage", android.content.Context.MODE_PRIVATE)
+        )
+    }
+
     val githubUpdater by lazy {
         com.voicehabit.tracker.core.update.github.GithubUpdateController(appContext, settings)
     }

@@ -127,6 +127,14 @@ fun CreateHabitScreen(
     var habitCategory by remember { mutableStateOf("Morning") }
     var habitQuote by remember { mutableStateOf("") }
     var habitFrequency by remember { mutableStateOf("DAILY") }
+    // Норма количества («2 литра») — поле было в схеме, но ни один экран его не показывал.
+    var habitTarget by remember { mutableStateOf("1") }
+    var habitUnit by remember { mutableStateOf("") }
+    // Воздержание («не курить») и цель «N раз в неделю» — кодируются в tags,
+    // чтобы не делать миграцию БД (см. HabitTagCodec).
+    var habitAvoid by remember { mutableStateOf(false) }
+    var habitPerWeek by remember { mutableIntStateOf(0) }
+    var habitScheduleDays by remember { mutableStateOf((1..7).toSet()) }
     var taskType by remember { mutableStateOf(TaskType.QUICK) }
     var taskPriority by remember { mutableStateOf(Priority.MEDIUM) }
     var dueOffset by remember { mutableIntStateOf(1) }
@@ -162,6 +170,12 @@ fun CreateHabitScreen(
             if (mode == CreateMode.HABIT) "New Habit" else "Новая задача"
         }
         if (mode == CreateMode.HABIT) {
+            val targetValue = habitTarget.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 } ?: 1.0
+            val unit = habitUnit.trim().ifEmpty { null }
+            var tagsCsv = ""
+            tagsCsv = com.voicehabit.tracker.core.analysis.HabitTagCodec.withAvoid(tagsCsv, habitAvoid)
+            tagsCsv = com.voicehabit.tracker.core.analysis.HabitTagCodec.withWeeklyTarget(tagsCsv, habitPerWeek)
+            val tags = tagsCsv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             onSaveHabit(
                 Habit(
                     id = "habit_" + UUID.randomUUID().toString().take(8),
@@ -170,9 +184,13 @@ fun CreateHabitScreen(
                     displayType = displayOptions[selectedDisplayIndex].type,
                     colorHex = selectedColorHex,
                     quote = habitQuote.trim(),
+                    targetValue = targetValue,
+                    unit = unit,
+                    tags = tags,
                     frequency = habitFrequency,
                     currentStreak = 0,
-                    isCompletedToday = false
+                    isCompletedToday = false,
+                    scheduleDays = habitScheduleDays
                 )
             )
         } else {
@@ -308,12 +326,25 @@ fun CreateHabitScreen(
                         category = habitCategory,
                         onCategoryChange = { habitCategory = it },
                         frequency = habitFrequency,
-                        onFrequencyChange = { habitFrequency = it },
+                        onFrequencyChange = {
+                            habitFrequency = it
+                            if (it == "DAILY") habitScheduleDays = (1..7).toSet()
+                        },
+                        scheduleDays = habitScheduleDays,
+                        onScheduleDaysChange = { habitScheduleDays = it },
                         colors = colors,
                         selectedColorHex = selectedColorHex,
                         onColorChange = { selectedColorHex = it },
                         quote = habitQuote,
                         onQuoteChange = { habitQuote = it },
+                        target = habitTarget,
+                        onTargetChange = { habitTarget = it },
+                        unit = habitUnit,
+                        onUnitChange = { habitUnit = it },
+                        avoid = habitAvoid,
+                        onAvoidChange = { habitAvoid = it },
+                        perWeek = habitPerWeek,
+                        onPerWeekChange = { habitPerWeek = it },
                         onAddCategory = { viewModel?.addCustomCategory(it) },
                         presets = presetOrder,
                         randomizeCount = randomizeCount,
@@ -371,11 +402,21 @@ private fun HabitCreationContent(
     onCategoryChange: (String) -> Unit,
     frequency: String,
     onFrequencyChange: (String) -> Unit,
+    scheduleDays: Set<Int> = (1..7).toSet(),
+    onScheduleDaysChange: (Set<Int>) -> Unit = {},
     colors: List<Pair<String, Color>>,
     selectedColorHex: String,
     onColorChange: (String) -> Unit,
     quote: String,
     onQuoteChange: (String) -> Unit,
+    target: String,
+    onTargetChange: (String) -> Unit,
+    unit: String,
+    onUnitChange: (String) -> Unit,
+    avoid: Boolean,
+    onAvoidChange: (Boolean) -> Unit,
+    perWeek: Int,
+    onPerWeekChange: (Int) -> Unit,
     presets: List<ActivityPreset>,
     randomizeCount: Int,
     onPresetClick: (ActivityPreset) -> Unit,
@@ -578,6 +619,70 @@ private fun HabitCreationContent(
                 }
             }
 
+            // Дни недели
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Дни недели",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DuroTextSecondary
+                    )
+                    val daysSummary = when {
+                        scheduleDays.size == 7 -> "Каждый день"
+                        scheduleDays == (1..5).toSet() -> "По будням"
+                        scheduleDays == setOf(6, 7) -> "По выходным"
+                        else -> "${scheduleDays.size} дн. в нед."
+                    }
+                    Text(
+                        text = daysSummary,
+                        fontSize = 11.sp,
+                        color = selectedColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                val dayNames = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    (1..7).forEach { day ->
+                        val selected = day in scheduleDays
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selected) selectedColor.copy(alpha = 0.25f) else DuroSurface)
+                                .border(1.dp, if (selected) selectedColor else DuroBorder, RoundedCornerShape(10.dp))
+                                .clickable {
+                                    val updated = if (selected) {
+                                        if (scheduleDays.size > 1) scheduleDays - day else scheduleDays
+                                    } else {
+                                        scheduleDays + day
+                                    }
+                                    onScheduleDaysChange(updated)
+                                    if (updated.size == 7) {
+                                        onFrequencyChange("DAILY")
+                                    } else {
+                                        onFrequencyChange("WEEKLY")
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = dayNames[day - 1],
+                                fontSize = 12.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) DuroTextPrimary else DuroTextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
             // Категория
             Column {
                 Text(
@@ -654,6 +759,72 @@ private fun HabitCreationContent(
                 colors = duioFieldColors(selectedColor),
                 singleLine = true
             )
+
+            // Норма количества: «2» + «л» — раньше поле было только в БД.
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = target,
+                    onValueChange = onTargetChange,
+                    label = { Text("Норма", color = DuroTextSecondary) },
+                    placeholder = { Text("1", color = DuroTextMuted) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = duioFieldColors(selectedColor),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    )
+                )
+                OutlinedTextField(
+                    value = unit,
+                    onValueChange = onUnitChange,
+                    label = { Text("Единица", color = DuroTextSecondary) },
+                    placeholder = { Text("раз, л, стр.", color = DuroTextMuted) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = duioFieldColors(selectedColor),
+                    singleLine = true
+                )
+            }
+
+            // Воздержание и цель «N раз в неделю».
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Checkbox(
+                    checked = avoid,
+                    onCheckedChange = onAvoidChange,
+                    colors = CheckboxDefaults.colors(checkedColor = selectedColor)
+                )
+                Text(
+                    text = "Воздержание («не делать» вместо «делать»)",
+                    fontSize = 13.sp,
+                    color = DuroTextPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Раз в неделю:",
+                    fontSize = 13.sp,
+                    color = DuroTextPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                listOf(0, 2, 3, 5).forEach { n ->
+                    val label = if (n == 0) "каждый день" else "×$n"
+                    val selected = perWeek == n
+                    ModeChip(
+                        label = label,
+                        selected = selected,
+                        accent = selectedColor,
+                        onClick = { onPerWeekChange(n) }
+                    )
+                }
+            }
         }
     }
 }

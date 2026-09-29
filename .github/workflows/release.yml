@@ -5,15 +5,15 @@ name: Release APK
 # или вручную через Actions → Release APK → Run workflow.
 #
 # Обязательные секреты (Settings → Secrets → Actions) для подписанных OTA:
-#   KEYSTORE_BASE64  — keystore.jks в base64 (один раз: keytool -genkeypair ...)
+#   KEYSTORE_BASE64  — keystore в base64 (keytool -genkeypair ... | base64 -w0)
 #   KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
-# Без них тег-релиз падает с понятной ошибкой: иначе OTA сломается
-# (сертификат каждой сборки должен совпадать).
+# Без них тег-релиз падает: ключ подписи НЕ хранится в репозитории и не может
+# быть восстановлен из него (см. ROTATION.md — старый ключ был публичным).
 #
-# Необязательные секреты — встроенные ключи ИИ (приложение работает из коробки):
-#   GROQ_API_KEY   — ключ Groq (Whisper STT), бесплатный на console.groq.com
-#   GEMINI_API_KEY — ключ Gemini (разбор команд), бесплатный в Google AI Studio
-# Без них работают офлайн-парсер и ручной ввод ключей в настройках.
+# Ключи ИИ (GROQ_API_KEY / GEMINI_API_KEY) здесь больше НЕ используются и не
+# должны добавляться: они попадали в classes.dex каждого опубликованного APK
+# и извлекались из него через `strings`. Приложение работает без них —
+# вводите свой ключ в Настройках или пользуйтесь офлайн-парсером.
 
 on:
   push:
@@ -86,23 +86,33 @@ jobs:
           echo "code=$(( ${{ github.run_number }} + 100 ))" >> "$GITHUB_OUTPUT"
           echo "Version: name=$VER code=$(( ${{ github.run_number }} + 100 ))"
 
+      # Ключ подписи берётся ТОЛЬКО из секрета. Раньше здесь был fallback на
+      # android/app/keystore/release.jks, лежавший в публичном репозитории, —
+      # то есть любой мог подписать APK, который телефон примет как обновление.
       - name: Prepare keystore (signed OTA)
         id: keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-            echo "present=true" >> "$GITHUB_OUTPUT"
-            echo "Keystore из секрета готов."
-          elif [ -f "android/app/keystore/release.jks" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-            echo "Используется постоянный ключ проекта android/app/keystore/release.jks."
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Постоянный ключ проекта не найден!"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Секрет KEYSTORE_BASE64 не задан. Без него релиз не собрать:"
+            echo "::error::ключ подписи намеренно не хранится в репозитории."
+            echo "::error::Создайте ключ и сохраните секрет — см. ROTATION.md."
             exit 1
           fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore/release.jks
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          echo "Keystore из секрета готов."
+
+      # Гейт: релиз не публикуется, если падают unit-тесты. Раньше в CI не было
+      # ни одного шага тестов, и зелёный тег всегда публиковал APK.
+      - name: Run unit tests
+        working-directory: android
+        run: ./gradlew testDebugUnitTest --no-daemon --console=plain
+
+      - name: Lint
+        working-directory: android
+        run: ./gradlew lintDebug --no-daemon --console=plain
 
       - name: Build release APK
         working-directory: android
@@ -110,8 +120,6 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: ./gradlew assembleRelease --no-daemon --console=plain -PversionName="${{ steps.version.outputs.name }}" -PversionCode="${{ steps.version.outputs.code }}"
 
       - name: Verify APK is signed

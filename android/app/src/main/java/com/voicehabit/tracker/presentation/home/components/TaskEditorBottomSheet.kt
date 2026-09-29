@@ -33,6 +33,7 @@ import com.voicehabit.tracker.domain.model.Subtask
 import com.voicehabit.tracker.domain.model.Task
 import com.voicehabit.tracker.domain.model.TaskRecurrence
 import com.voicehabit.tracker.domain.model.TaskType
+import com.voicehabit.tracker.presentation.home.HomeState
 import com.voicehabit.tracker.presentation.home.HomeViewModel
 import com.voicehabit.tracker.presentation.theme.*
 import java.time.LocalDate
@@ -84,13 +85,17 @@ fun TaskEditorBottomSheet(
     val reminderChips = listOf(null to "Нет", 15 to "15 мин", 60 to "1 час", 1440 to "1 день")
 
     LaunchedEffect(task.id) { viewModel?.loadSubtasks(task.id) }
-    val subtasks = viewModel?.let {
-        val state by it.state.collectAsState()
-        state.subtasks[task.id] ?: emptyList()
-    } ?: emptyList()
+
+    // Состояние собираем один раз и наблюдаем. Раньше здесь было
+    // `viewModel?.state?.value?.tasks` прямо внутри remember(...) и внутри
+    // композиции: чтение .value не подписывает composable на изменения,
+    // поэтому список задач мог не обновиться и редактор вёлся не по тому
+    // состоянию, которое отображалось на экране.
+    val state by (viewModel?.state?.collectAsState() ?: remember { mutableStateOf(HomeState()) })
+    val subtasks = state.subtasks[task.id] ?: emptyList()
     val doneCount = subtasks.count { it.isDone }
-    val isExistingTask = remember(task.id, viewModel?.state?.value?.tasks) {
-        viewModel?.state?.value?.tasks?.any { it.id == task.id } == true
+    val isExistingTask = remember(task.id, state.tasks) {
+        state.tasks.any { it.id == task.id }
     }
 
     ModalBottomSheet(

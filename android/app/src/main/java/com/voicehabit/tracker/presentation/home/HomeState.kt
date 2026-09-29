@@ -86,8 +86,16 @@ data class HomeState(
     val selectedTab: String = "All", // "All", "D", "W", "M"
     val isGridView: Boolean = true, // Grid view (true) or List view (false)
     val isCreateHabitOpen: Boolean = false,
-    val yearProgressPercentage: Int = 74,
-    val dateDisplayString: String = "SEP 25",
+    val yearProgressPercentage: Int = 0,
+    val dateDisplayString: String = "",
+    /**
+     * Сколько дней этой недели (ПН..ВС) закрыто хотя бы одной отметкой привычки.
+     * Раньше эта строка на экране «Обзор» рисовала жёсткие `index <= 3` —
+     * то есть всегда показывала «4 из 7», независимо от реальных данных.
+     */
+    val weekCompletedDays: List<Boolean> = List(7) { false },
+    /** Реальное суммарное время фокуса за сегодня, мин. Раньше считалось как `сессии × 25`. */
+    val focusMinutesToday: Int = 0,
     val isLoading: Boolean = false,
     val isRecording: Boolean = false,
     val pendingReviewAction: VoiceNoteAction? = null,
@@ -95,6 +103,11 @@ data class HomeState(
     val selectedHabitForDetail: Habit? = null,
     val hasApiKeysConfigured: Boolean = false,
     val isVoiceQueueOpen: Boolean = false,
+    /** Глобальный поиск, обратная связь, автовыводы о пользователе (1.3.0). */
+    val isGlobalSearchOpen: Boolean = false,
+    val globalSearchQuery: String = "",
+    val isFeedbackOpen: Boolean = false,
+    val inferredInsights: String = "",
     val voiceLogs: List<com.voicehabit.tracker.data.local.entity.VoiceLogEntity> = emptyList(),
     val infoMessage: String? = null,
     val errorMessage: String? = null,

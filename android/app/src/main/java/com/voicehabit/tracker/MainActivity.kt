@@ -93,8 +93,11 @@ class MainActivity : ComponentActivity() {
     private val recordAudioPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        // Отдельного UI для отказа нет: подсказка об офлайн-режиме появится в HomeScreen,
-        // а повторный запрос не выполняется (см. [hasAskedForAudioPermission]).
+        if (isGranted) {
+            viewModel.startRecording()
+        } else {
+            viewModel.onMicDenied()
+        }
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -102,6 +105,21 @@ class MainActivity : ComponentActivity() {
     ) { /* без уведомлений очередь всё равно обработается, просто без push */ }
 
     private var hasAskedForAudioPermission = false
+
+    /**
+     * Прогрессивный запрос микрофона: спрашиваем в момент нажатия на запись,
+     * а не в onCreate до первого экрана. Пользователь понимает, зачем доступ.
+     */
+    fun requestAudioForRecording() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            viewModel.startRecording()
+            return
+        }
+        hasAskedForAudioPermission = true
+        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -137,7 +155,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        checkAndRequestAudioPermission()
         checkAndRequestNotificationPermission()
         consumeSharedText(intent)
         checkUpdateInstallRequest(intent)
@@ -145,18 +162,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_INSTALL_UPDATE = "extra_install_update"
-    }
-
-    private fun checkAndRequestAudioPermission() {
-        if (hasAskedForAudioPermission) return
-        hasAskedForAudioPermission = true
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        }
     }
 
     /**

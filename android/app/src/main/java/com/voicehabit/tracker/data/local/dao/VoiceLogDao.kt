@@ -24,6 +24,13 @@ interface VoiceLogDao {
     @Query("SELECT * FROM voice_logs WHERE status = 'PENDING_UPLOAD' ORDER BY createdAt ASC")
     suspend fun getPendingUploads(): List<VoiceLogEntity>
 
+    /**
+     * Записи, которые можно разобрать заново: не было сети, упал ИИ, пустой
+     * транскрипт. Используется кнопкой «Разобрать заново» в очереди голоса.
+     */
+    @Query("SELECT * FROM voice_logs WHERE status IN ('PENDING_UPLOAD', 'FAILED') ORDER BY createdAt ASC")
+    suspend fun getRetryableLogs(): List<VoiceLogEntity>
+
     @Query("SELECT * FROM voice_logs WHERE id = :id")
     suspend fun getVoiceLogById(id: String): VoiceLogEntity?
 }

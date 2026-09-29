@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ (dataExtractionRules). Бэкап полностью исключён:
+    БД содержит сырые транскрипты голоса (voice_logs.rawTranscript) и текст
+    дневника — это самая интимная часть данных приложения, и она не должна
+    уезжать в Google Drive без явного действия пользователя.
+
+    Перенос на новое устройство (device-transfer) тоже выключен:
+    иначе восстановление из бэкапа ОС тихо вернуло бы чувствительные записи
+    на чужом устройстве.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+        <exclude domain="device_root" />
+        <exclude domain="device_database" />
+        <exclude domain="device_sharedpref" />
+        <exclude domain="device_file" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+        <exclude domain="device_root" />
+        <exclude domain="device_database" />
+        <exclude domain="device_sharedpref" />
+        <exclude domain="device_file" />
+    </device-transfer>
+</data-extraction-rules>

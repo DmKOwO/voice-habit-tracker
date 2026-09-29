@@ -120,6 +120,20 @@ class SettingsManager(context: Context) {
 
     // ---------- Контекст обо мне (User Persona & Memory Engine) ----------
 
+    /** Общее key-value хранилище для UI-состояния и выводов (без новых колонок). */
+    fun putString(key: String, value: String) = prefs.edit().putString(key, value).apply()
+    fun getString(key: String, default: String = ""): String = prefs.getString(key, default) ?: default
+    fun putBoolean(key: String, value: Boolean) = prefs.edit().putBoolean(key, value).apply()
+    fun getBoolean(key: String, default: Boolean = false): Boolean = prefs.getBoolean(key, default)
+
+    /**
+     * Автовыводы о пользователе из его задач и конспектов (отдельно от ручных
+     * фактов персоны — не конфликтует, ручное всегда главнее).
+     */
+    var inferredInsights: String
+        get() = prefs.getString(KEY_INFERRED_INSIGHTS, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_INFERRED_INSIGHTS, value).apply()
+
     var userPersonaHardFacts: String
         get() = prefs.getString(KEY_USER_PERSONA_HARD_FACTS, "") ?: ""
         set(value) = prefs.edit().putString(KEY_USER_PERSONA_HARD_FACTS, value.trim()).apply()
@@ -188,6 +202,7 @@ class SettingsManager(context: Context) {
         private const val KEY_USER_PERSONA_HARD_FACTS = "key_user_persona_hard_facts"
         private const val KEY_USER_PERSONA_ACTIVE_FOCUS = "key_user_persona_active_focus"
         private const val KEY_USER_PERSONA_MEMORY_LOG = "key_user_persona_memory_log"
+        private const val KEY_INFERRED_INSIGHTS = "key_inferred_insights"
 
         @Volatile
         private var INSTANCE: SettingsManager? = null

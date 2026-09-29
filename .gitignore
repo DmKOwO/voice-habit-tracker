@@ -1,8 +1,9 @@
-# Keystore для подписи релизов: пользовательский keystore.jks игнорируется,
-# а постоянный ключ проекта сохраняется, чтобы подписи всегда совпадали.
+# Keystore и параметры подписи релизов: ничего из этого не должно попадать
+# в репозиторий. Файл release.jks уже был в истории — см. ROTATION.md.
 *.jks
 *.keystore
-!android/app/keystore/release.jks
+android/app/keystore/
+!android/app/keystore/keystore.properties.example
 
 # Android / Gradle
 .gradle/

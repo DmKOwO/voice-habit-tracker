@@ -3,6 +3,7 @@ package com.voicehabit.tracker.data.remote
 import com.voicehabit.tracker.core.analysis.ActionTitle
 import com.voicehabit.tracker.core.analysis.DigestBuilder
 import com.voicehabit.tracker.core.analysis.IntentRouter
+import com.voicehabit.tracker.core.analysis.NegationDetector
 import com.voicehabit.tracker.data.local.entity.HabitEntity
 import com.voicehabit.tracker.data.local.entity.TaskEntity
 import com.voicehabit.tracker.domain.model.*
@@ -53,6 +54,28 @@ object OfflineVoiceParser {
     private val RECURRING_MARKERS = listOf(
         "привычка", "привычк", "каждый день", "ежедневно", "ежедневный", "постоянно", "регулярно",
         "каждую неделю", "систематически", "на регулярной основе"
+    )
+
+    /** Создание новой привычки голосом: «начни привычку бегать по утрам». */
+    private val HABIT_CREATE_MARKERS = listOf(
+        "новая привычка", "новую привычку", "добавь привычку", "добавить привычку",
+        "начни привычку", "начать привычку", "хочу привычку", "заведи привычку",
+        "создай привычку", "отслеживай", "трекай"
+    )
+    private val HABIT_CREATE_PREFIX_STRIP = listOf(
+        "новая привычка", "новую привычку", "добавь привычку", "добавить привычку",
+        "начни привычку", "начать привычку", "хочу привычку", "заведи привычку",
+        "создай привычку", "отслеживай", "трекай", "привычка"
+    )
+    private val UNIT_MARKERS = mapOf(
+        "литр" to "л", "литра" to "л", "литров" to "л",
+        "стакан" to "стак.", "стакана" to "стак.", "стаканов" to "стак.",
+        "страниц" to "стр.", "страницы" to "стр.", "страницу" to "стр.",
+        "минут" to "мин", "минуты" to "мин", "минуту" to "мин",
+        "час" to "ч", "часа" to "ч", "часов" to "ч",
+        "километр" to "км", "километра" to "км",
+        "шаг" to "шагов", "шагов" to "шагов",
+        "раз" to "раз", "раза" to "раз"
     )
 
     private val LEADING_PREFIXES = listOf(
@@ -165,6 +188,7 @@ object OfflineVoiceParser {
         val isRecurring = containsAnyStem(lower, RECURRING_MARKERS)
 
         val completedHabits = mutableListOf<HabitCompletedAction>()
+        val habitsToCreate = mutableListOf<HabitCreateAction>()
         val tasksToAdd = mutableListOf<TaskCreateAction>()
         val tasksToComplete = mutableListOf<TaskCompleteAction>()
         val tasksToDelete = mutableListOf<TaskDeleteAction>()
@@ -176,6 +200,10 @@ object OfflineVoiceParser {
         // Сущности создаются только в режимах, которые действительно про поручение.
         // При потоке мыслей список дел не трогаем вообще.
         if (verdict.mode.producesEntities) {
+            // Новая привычка голосом — проверяется раньше задач: «добавь привычку
+            // читать» содержит глагол действия, но это не задача.
+            detectHabitCreation(lower, insights)?.let { habitsToCreate.add(it) }
+
             val intent = classifyIntent(lower, insights)
 
             if (intent == Intent.COMMAND) {
@@ -324,11 +352,15 @@ object OfflineVoiceParser {
         if (summaryParts.isEmpty()) {
             summaryParts.add("Заметка сохранена: «$transcript»")
         }
+        if (habitsToCreate.isNotEmpty()) {
+            summaryParts.add(0, "Новая привычка: " + habitsToCreate.first().title)
+        }
 
         return VoiceNoteAction(
             rawTranscript = transcript,
             summary = summaryParts.joinToString(" • "),
             habitsCompleted = completedHabits,
+            habitsToCreate = habitsToCreate,
             tasksToAdd = tasksToAdd,
             tasksToComplete = tasksToComplete,
             tasksToDelete = tasksToDelete,
@@ -442,6 +474,12 @@ object OfflineVoiceParser {
     }
 
     private fun classifyIntent(lower: String, insights: MutableList<String>): Intent {
+        // H88. «Я не делал зарядку» содержит маркер прошедшего времени, но ничего
+        // не завершает. Отрицание снимает режим COMPLETE целиком — иначе фраза
+        // превращалась в ложную отметку выполнения.
+        val negated = NegationDetector.isNegated(lower)
+        if (negated) insights.add("В фразе есть отрицание — не закрываю выполненное")
+
         if (containsAnyStem(lower, SUMMARY_MARKERS + FOCUS_MARKERS + DELETE_MARKERS + RESCHEDULE_MARKERS)
             || lower.startsWith("шаблон")
         ) {
@@ -451,7 +489,7 @@ object OfflineVoiceParser {
         val hasAllDone = containsAnyPhrase(lower, ALL_DONE_MARKERS)
 
         return when {
-            hasPastMarker || hasAllDone -> Intent.COMPLETED
+            !negated && (hasPastMarker || hasAllDone) -> Intent.COMPLETED
             containsAnyWord(lower, PLAN_TRIGGERS) -> Intent.PLAN
             // «в 18:30 позвонить врачу» — тут нет ни «надо», ни «напомни», но это явно план.
             containsAnyWord(lower, ACTION_VERBS) || startsWithInfinitive(lower) -> Intent.PLAN
@@ -469,13 +507,58 @@ object OfflineVoiceParser {
         return INFINITIVE_ENDINGS.any { firstWord.endsWith(it) }
     }
 
+    /**
+     * Создание привычки голосом. Возвращает действие или null.
+     * Количество («два литра») и единицу («литра» → «л») вытаскиваем сразу,
+     * чтобы привычка создавалась готовой, а не «1 раз» по умолчанию.
+     */
+    private fun detectHabitCreation(lower: String, insights: MutableList<String>): HabitCreateAction? {
+        if (!HABIT_CREATE_MARKERS.any { lower.contains(it) }) return null
+        var title = lower.trim()
+        for (prefix in HABIT_CREATE_PREFIX_STRIP.sortedByDescending { it.length }) {
+            val idx = title.indexOf(prefix)
+            if (idx >= 0) {
+                title = (title.substring(0, idx) + " " + title.substring(idx + prefix.length)).trim()
+                break
+            }
+        }
+        // Чистим остатки модальных слов по краям, дату не трогаем (у привычки её нет).
+        title = stripMetaPhrases(title).trim().trim('.', ',', '!')
+        if (title.length < 3) {
+            insights.add("Просьба завести привычку без названия — пропускаю")
+            return null
+        }
+        val amount = com.voicehabit.tracker.core.analysis.RussianNumberParser.findFirst(lower)
+        val unit = UNIT_MARKERS.entries.firstOrNull { lower.contains(it.key) }?.value
+        insights.add("Новая привычка голосом: «$title»" + (amount?.let { " · $it ${unit ?: "раз"}" } ?: ""))
+        return HabitCreateAction(
+            title = title.take(60).trim().replaceFirstChar { it.uppercase() },
+            targetValue = amount ?: 1.0,
+            unit = unit
+        )
+    }
+
     private fun matchHabits(
         lower: String,
         activeHabits: List<HabitEntity>,
         out: MutableList<HabitCompletedAction>,
         insights: MutableList<String>
     ) {
+        // H88. «Сегодня ничего не делал» содержит маркер отметки, но ничего не отмечает.
+        // Проверяем отрицание один раз на всю фразу: иначе «не бегал, но выпил воду»
+        // потерял бы вторую, действительно выполненную привычку.
+        val negated = NegationDetector.isNegated(lower)
+        if (negated) {
+            insights.add("В фразе есть отрицание — отметки не ставлю")
+        }
+
         if (containsAnyPhrase(lower, ALL_DONE_MARKERS)) {
+            // «не все привычки сделал» — это тоже отрицание, а не «всё выполнено».
+            val allDoneNegated = negated || ALL_DONE_MARKERS.any { NegationDetector.isNegatedBefore(lower, it) }
+            if (allDoneNegated) {
+                insights.add("Отрицание при фразе «всё сделал» — не отмечаю все привычки")
+                return
+            }
             insights.add("Фраза «всё сделал» — отмечаю все активные привычки")
             for (habit in activeHabits) {
                 if (out.none { it.habitId == habit.id }) {
@@ -494,18 +577,42 @@ object OfflineVoiceParser {
 
         for (habit in activeHabits) {
             if (!matchesHabit(lower, habit)) continue
+            // Отрицание проверяем точечно, рядом с названием самой привычки:
+            // «не бегал, но выпил воду» должно закрыть воду, а не бег.
+            if (negated && isHabitNegated(lower, habit)) {
+                insights.add("«${habit.title}» — в фразе отрицание, не отмечаю")
+                continue
+            }
+            // Количество из речи важнее дефолта привычки: «выпил два литра»
+            // при норме 1 литр — это 2.0, а не 1.0.
+            val spokenAmount = com.voicehabit.tracker.core.analysis.RussianNumberParser.findFirst(lower)
             if (out.none { it.habitId == habit.id }) {
-                insights.add("Совпадение с привычкой «${habit.title}»")
+                insights.add("Совпадение с привычкой «${habit.title}»" + (spokenAmount?.let { " · $it" } ?: ""))
                 out.add(
                     HabitCompletedAction(
                         habitId = habit.id,
                         habitTitle = habit.title,
-                        incrementValue = habit.targetValue,
+                        incrementValue = spokenAmount ?: habit.targetValue,
                         comment = "Отмечено голосом"
                     )
                 )
             }
         }
+    }
+
+    /**
+     * Отрицается ли конкретная привычка: ищем её синонимы/название в тексте и смотрим,
+     * стоит ли перед найденным вхождением частица отрицания.
+     */
+    private fun isHabitNegated(lower: String, habit: HabitEntity): Boolean {
+        val title = habit.title.lowercase(Locale.getDefault())
+        val synonyms = HABIT_SYNONYMS[habit.id]
+            ?: HABIT_SYNONYMS.entries.firstOrNull { title.contains(it.key) }?.value
+            ?: emptyList()
+        val probes = synonyms.ifEmpty {
+            listOfNotNull(title.split(" ", "-", "_").filter { it.length >= 4 }.firstOrNull())
+        }
+        return probes.any { NegationDetector.isNegatedBefore(lower, it) }
     }
 
     private fun matchesHabit(lower: String, habit: HabitEntity): Boolean {
@@ -532,10 +639,14 @@ object OfflineVoiceParser {
             val words = task.title.lowercase(Locale.getDefault())
                 .split(" ", "-", "_")
                 .filter { it.length >= 4 }
-            if (words.isNotEmpty() && words.any { containsStem(lower, it) }) {
-                insights.add("Совпадение с открытой задачей «${task.title}»")
-                out.add(TaskCompleteAction(taskId = task.id, taskTitle = task.title))
+            val matched = words.firstOrNull { containsStem(lower, it) } ?: continue
+            // H88. «Отчёт не отправил» — задача остаётся открытой.
+            if (NegationDetector.isNegatedBefore(lower, matched)) {
+                insights.add("«${task.title}» — в фразе отрицание, не закрываю")
+                continue
             }
+            insights.add("Совпадение с открытой задачей «${task.title}»")
+            out.add(TaskCompleteAction(taskId = task.id, taskTitle = task.title))
         }
     }
 

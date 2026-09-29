@@ -39,6 +39,7 @@ fun ReviewBottomSheet(
     onOverrideMode: (IntentMode) -> Unit = {}
 ) {
     var habitsState by remember { mutableStateOf(action.habitsCompleted) }
+    var newHabitsState by remember { mutableStateOf(action.habitsToCreate) }
     var tasksState by remember { mutableStateOf(action.tasksToAdd) }
     var deleteState by remember { mutableStateOf(action.tasksToDelete) }
     var rescheduleState by remember { mutableStateOf(action.tasksToReschedule) }
@@ -47,6 +48,7 @@ fun ReviewBottomSheet(
 
     fun currentAction(): VoiceNoteAction = action.copy(
         habitsCompleted = habitsState,
+        habitsToCreate = newHabitsState,
         tasksToAdd = tasksState,
         tasksToDelete = deleteState,
         tasksToReschedule = rescheduleState,
@@ -220,6 +222,66 @@ fun ReviewBottomSheet(
                                         onSpeak(text)
                                     }
                                 )
+                            }
+                        }
+                    }
+                }
+
+                if (newHabitsState.isNotEmpty()) {
+                    item(key = "new_habits_header") {
+                        Text(
+                            text = "НОВЫЕ ПРИВЫЧКИ",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppTheme.colors.accentSecondary,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    items(newHabitsState, key = { "newhabit_" + it.title }) { habitAction ->
+                        Surface(
+                            color = DuroSurfaceElevated,
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DuroBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Checkbox(
+                                        checked = habitAction.isSelected,
+                                        onCheckedChange = { checked ->
+                                            newHabitsState = newHabitsState.map {
+                                                if (it.title == habitAction.title) it.copy(isSelected = checked) else it
+                                            }
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = AppTheme.colors.accentSecondary,
+                                            uncheckedColor = DuroTextMuted
+                                        )
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = habitAction.title,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = DuroTextPrimary
+                                        )
+                                        Text(
+                                            text = "Новая · норма ${habitAction.targetValue}" +
+                                                (habitAction.unit?.let { " $it" } ?: ""),
+                                            fontSize = 11.sp,
+                                            color = DuroTextSecondary
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

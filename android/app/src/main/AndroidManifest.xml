@@ -5,19 +5,31 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
     <!-- Канал GitHub Releases: установка скачанного APK через системный инсталлер.
          На Android 8+ пользователь однократно разрешает «установку из неизвестных
          источников» в системном диалоге — тихой установки нет. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Запись с выключенным экраном: сервис должен быть видимым для пользователя,
+         иначе Android убьёт его через несколько минут. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- F11 Health Connect: шаги и сон (runtime-подтверждение в самом Health Connect). -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
 
     <application
         android:name=".VoiceHabitApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@drawable/ic_launcher_dairy"
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_dairy_round"
@@ -49,10 +61,15 @@
             </intent-filter>
         </activity>
 
-        <!-- Quick Voice Recording Overlay Activity triggered by Home Screen Widget -->
+        <!-- Оверлей быстрой записи из виджета.
+             exported=false: виджет стартует его через PendingIntent, который создано
+             наше приложение, поэтому он исполняется от нашего имени и компонент
+             не обязан быть экспортируемым. Раньше activity была exported=true без
+             permission — любое приложение на телефоне могло запустить её и открыть
+             оверлей с записью с микрофона. -->
         <activity
             android:name=".widget.QuickRecordActivity"
-            android:exported="true"
+            android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:windowSoftInputMode="adjustResize" />
 
@@ -139,6 +156,13 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- Запись с выключенным экраном: без foreground-сервиса процесс умирает
+             через минуты после блокировки. Тип microphone обязателен с Android 14. -->
+        <service
+            android:name=".worker.VoiceRecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <!-- FileProvider для передачи скачанного APK системному установщику.
              Каталог filesDir/updates недоступен другим приложениям напрямую,

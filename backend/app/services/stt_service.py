@@ -10,13 +10,18 @@ class STTService:
         self.settings = settings
         self.groq_client = Groq(api_key=settings.groq_api_key) if settings.is_groq_ready else None
 
-    async def transcribe(self, audio_bytes: bytes, filename: str = "voice.m4a") -> Tuple[str, int, str]:
+    async def transcribe(self, audio_bytes: bytes, filename: str = "voice.m4a") -> Tuple[str, int, str, bool]:
         """
         Транскрибирует аудио в текст.
-        Возвращает (текст, длительность_мс, имя_провайдера).
+        Возвращает (текст, длительность_мс, имя_провайдера, simulated).
+
+        simulated=True означает, что аудио НЕ было распознано, а текст подставлен.
+        Клиент обязан проверить этот флаг: раньше подставленный текст уезжал
+        в БД как настоящий разбор, и пользователь получал выдуманные отметки
+        привычек и выдуманные задачи.
         """
         start_time = time.time()
-        
+
         # 1. Если задан Groq API Key — используем супербыстрый whisper-large-v3-turbo
         if self.groq_client:
             try:
@@ -30,10 +35,10 @@ class STTService:
                     temperature=0.0
                 )
                 duration_ms = int((time.time() - start_time) * 1000)
-                return transcription.text, duration_ms, f"groq:{self.settings.groq_whisper_model}"
+                return transcription.text, duration_ms, f"groq:{self.settings.groq_whisper_model}", False
             except Exception as e:
                 # В случае ошибки логируем и переходим к фоллбеку
-                print(f"[STT Error in Groq] {e}. Falling back to simulation/fallback.")
+                print(f"[STT Error in Groq] {type(e).__name__}: {e}. Falling back to simulation.")
 
         # 2. Если API ключ не задан или произошла ошибка — режим реалистичной симуляции
         duration_ms = int((time.time() - start_time) * 1000) + 120
@@ -43,4 +48,4 @@ class STTService:
             "обсудить архитектуру, а еще в пятницу до шести вечера отправить отчет по практике научнику. "
             "Да, и напомни вечером курицу разморозить на ужин. И записать мысль для игры: прикольная механика с затухающим фонариком."
         )
-        return mock_transcript, duration_ms, "mock:whisper-simulation"
+        return mock_transcript, duration_ms, "mock:whisper-simulation", True

@@ -9,12 +9,30 @@ import java.io.FileInputStream
 import java.util.Properties
 
 /**
- * Ключ ИИ для встраивания в сборку: -Pсвойство → local.properties → env.
- * local.properties не коммитится (.gitignore), поэтому ключи переживают
- * любые пересборки на этой машине без повторного ввода.
+ * Ключ ИИ для встраивания в сборку.
+ *
+ * БЕЗОПАСНОСТЬ: по умолчанию ключи НЕ попадают ни в какую сборку.
+ * Встраивание включается только явным флагом `-PbundleAiKeys=true`
+ * (и никогда — через переменную окружения, чтобы флаг нельзя было
+ * случайно включить на CI одной строкой в secrets).
+ *
+ * Почему так: строка в BuildConfig попадает в classes.dex в виде обычной
+ * константы и достаётся из публичного APK через `strings` за секунду.
+ * Ключ автора в APK каждого пользователя — это его квота и его счёт.
+ *
+ * Что делать вместо этого: пользователь вводит свой ключ в Настройках
+ * (хранится в приватном SharedPreferences), либо приложение работает
+ * полностью офлайн на встроенном парсере — он не требует ни сети,
+ * ни ключей, ни моделей.
+ *
+ * Источники при включённом флаге: -Pсвойство → local.properties → env.
  * Экранируется под Java-строку, чтобы ключ с кавычками не ломал компиляцию.
  */
 fun bundledKey(propName: String, envName: String, localPropName: String): String {
+    val enabled = (project.findProperty("bundleAiKeys") as String?)?.toBoolean() == true
+    if (!enabled) {
+        return ""
+    }
     var fromLocal: String? = null
     val localFile = rootProject.file("local.properties")
     if (localFile.exists()) {
@@ -28,6 +46,12 @@ fun bundledKey(propName: String, envName: String, localPropName: String): String
         ?: fromLocal
         ?: System.getenv(envName)
         ?: ""
+    if (raw.isNotBlank()) {
+        logger.warn(
+            "ВНИМАНИЕ: ключ ИИ встраивается в APK. Такой ключ публично извлекаем. " +
+                "Для обычной сборки оставьте -PbundleAiKeys выключенным."
+        )
+    }
     return raw.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "")
 }
 
@@ -74,9 +98,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Встроенные ключи ИИ: CI подставляет GROQ_API_KEY/GEMINI_API_KEY из секретов.
-        // Приложение работает из коробки, ручной ввод в настройках перекрывает их.
-        // Пусто по умолчанию — тогда работает офлайн-парсер и свой бэкенд.
+        // Встроенные ключи ИИ: по умолчанию ПУСТЫЕ (см. bundledKey выше).
+        // Чтобы встроить свои ключи в личную сборку: ./gradlew assembleRelease -PbundleAiKeys=true
+        // Приложение полностью работоспособно без них — офлайн-парсер не требует ключей.
         buildConfigField("String", "BUNDLED_GROQ_API_KEY", "\"${bundledKey("bundledGroqKey", "GROQ_API_KEY", "groq.api.key")}\"")
         buildConfigField("String", "BUNDLED_GEMINI_API_KEY", "\"${bundledKey("bundledGeminiKey", "GEMINI_API_KEY", "gemini.api.key")}\"")
     }
@@ -87,18 +111,35 @@ android {
     }
 
     signingConfigs {
-        // Единая постоянная подпись для всех сборок (релизы, OTA и локальный debug).
-        // Это навсегда исключает ошибку «пакет конфликтует с существующим пакетом»,
-        // так как сертификат всех сборок гарантированно идентичен.
+        // Постоянная подпись для всех сборок: релизы, OTA и локальный debug.
+        // Это навсегда исключает ошибку «пакет конфликтует с существующим пакетом».
+        //
+        // БЕЗОПАСНОСТЬ: пароль НЕ имеет фолбэка. Раньше здесь стоял литерал
+        // "dairy-release-key", а сам release.jks лежал в публичном репозитории —
+        // то есть подпись релизов была общедоступной. Теперь ключ берётся только
+        // из переменных окружения или локального keystore.properties (в git не коммитится).
         create("appSigning") {
-            val customKs = file("keystore.jks")
-            val defaultKs = file("keystore/release.jks")
-            val ksFile = if (customKs.exists()) customKs else defaultKs
+            val propsFile = file("keystore/keystore.properties")
+            val props = Properties()
+            if (propsFile.exists()) {
+                runCatching { FileInputStream(propsFile).use { props.load(it) } }
+            }
+            val customKs = file(props.getProperty("storeFile") ?: "keystore.jks")
 
-            storeFile = ksFile
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "dairy-release-key"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "dairy"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "dairy-release-key"
+            storeFile = if (customKs.exists()) customKs else file("keystore/release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+                ?: props.getProperty("storePassword")
+            keyAlias = System.getenv("KEY_ALIAS") ?: props.getProperty("keyAlias")
+            keyPassword = System.getenv("KEY_PASSWORD")
+                ?: props.getProperty("keyPassword")
+
+            if (storePassword == null || keyAlias == null || keyPassword == null) {
+                throw GradleException(
+                    "Нет параметров подписи. Задайте KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD " +
+                        "в переменных окружения или создайте android/app/keystore/keystore.properties " +
+                        "(образец — keystore.properties.example)."
+                )
+            }
 
             enableV1Signing = true
             enableV2Signing = true

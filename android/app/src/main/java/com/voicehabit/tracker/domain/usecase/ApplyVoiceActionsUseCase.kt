@@ -51,6 +51,27 @@ class ApplyVoiceActionsUseCase(
             )
         }
 
+        // 1б. Новые привычки голосом — создаём без отметки выполнения.
+        // Отметка появится, когда человек реально сделает (или скажет об этом).
+        for (create in action.habitsToCreate) {
+            if (!create.isSelected || create.title.isBlank()) continue
+            val assignedDisplay = displayTypes[index % displayTypes.size]
+            val assignedColor = colors[index % colors.size]
+            index++
+            habitRepository.insertOrUpdateHabit(
+                Habit(
+                    id = "habit_" + UUID.randomUUID().toString().take(8),
+                    title = create.title,
+                    category = "Voice",
+                    displayType = assignedDisplay,
+                    colorHex = assignedColor,
+                    quote = "Заведено голосом",
+                    targetValue = create.targetValue,
+                    unit = create.unit
+                )
+            )
+        }
+
         // 2. Создаем новые задачи
         for (taskAction in action.tasksToAdd) {
             if (!taskAction.isSelected) continue

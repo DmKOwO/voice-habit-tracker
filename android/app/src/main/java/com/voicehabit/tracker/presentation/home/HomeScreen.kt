@@ -40,6 +40,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,6 +92,7 @@ fun HomeScreen(
     val haptics = rememberDuroHaptics()
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val activity = LocalContext.current as? com.voicehabit.tracker.MainActivity
 
     if (state.isCreateHabitOpen) {
         CreateHabitScreen(
@@ -137,7 +139,10 @@ fun HomeScreen(
                     isRecordingFlow = viewModel.audioRecorder.isRecording,
                     durationSecondsFlow = viewModel.audioRecorder.recordDurationSeconds,
                     amplitudeFlow = viewModel.audioRecorder.amplitudeNormalized,
-                    onStartRecord = { viewModel.startRecording() },
+                    // Микрофон спрашиваем в момент записи, а не на старте:
+                    // MainActivity.requestAudioForRecording сам стартует запись,
+                    // если доступ уже есть.
+                    onStartRecord = { activity?.requestAudioForRecording() ?: viewModel.startRecording() },
                     onStopRecord = { viewModel.stopRecording() },
                     onCancelRecord = { viewModel.cancelRecording() },
                     modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
@@ -204,7 +209,7 @@ fun HomeScreen(
                             }
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = "Reached ${state.yearProgressPercentage}% of 2026",
+                                text = "Год пройден на ${state.yearProgressPercentage}%",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = AppTheme.colors.textSecondary
@@ -501,7 +506,8 @@ fun HomeScreen(
                 VoiceQueueBottomSheet(
                     logs = state.voiceLogs,
                     onReapply = { log -> viewModel.reapplyVoiceLog(log) },
-                    onDismiss = { viewModel.closeVoiceQueue() }
+                    onDismiss = { viewModel.closeVoiceQueue() },
+                    onRetry = { id -> viewModel.retryVoiceLog(id) }
                 )
             }
 
@@ -556,6 +562,45 @@ fun HomeScreen(
                     onDismiss = { viewModel.consumeCelebration() }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyRhythmView(
+    onCreateHabit: () -> Unit,
+    haptics: DuroHaptics
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Здесь будет ваш ритм",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = AppTheme.colors.textPrimary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Нажмите на микрофон и скажите, что сделали\nили что нужно сделать — остальное dairy разберёт сам",
+            fontSize = 13.sp,
+            color = AppTheme.colors.textSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 19.sp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = {
+                haptics.confirm()
+                onCreateHabit()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text("Завести первую привычку", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -767,6 +812,76 @@ fun RhythmView(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
+
+        // Adaptive Focus на первом экране: раньше движок был закопан в «Обзоре»,
+        // хотя это единственная фича категории. Компактная плашка запуска.
+        if (filteredHabits.isNotEmpty() || displayTasks.isNotEmpty()) {
+            Surface(
+                color = AppTheme.colors.surfaceElevated,
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                modifier = Modifier.fillMaxWidth().clickable {
+                    haptics.select()
+                    viewModel.startAdaptiveFocus("Быстрый фокус")
+                }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Фокус", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AppTheme.colors.textPrimary)
+                    Text(
+                        "адаптивный спринт под текущие дела",
+                        fontSize = 12.sp,
+                        color = AppTheme.colors.textSecondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text("Старт", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTheme.colors.accent)
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // «Залежалось»: задачи старше 3 дней без выполнения + контекст,
+        // откуда они («ты говорил во вторник…» — по дате создания).
+        val staleTasks = remember(displayTasks) {
+            val cutoff = System.currentTimeMillis() - 3L * 24 * 60 * 60 * 1000
+            displayTasks.filter { !it.isCompleted && it.createdAt < cutoff }.take(3)
+        }
+        if (staleTasks.isNotEmpty()) {
+            Text(
+                text = "Залежалось — может, разобрать?",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppTheme.colors.textSecondary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            staleTasks.forEach { task ->
+                val day = remember(task.createdAt) {
+                    try {
+                        java.text.SimpleDateFormat("EEEE", java.util.Locale("ru"))
+                            .format(java.util.Date(task.createdAt))
+                    } catch (e: Exception) { "" }
+                }
+                Text(
+                    text = "• ${task.title}" + (day?.let { " (ещё с $it)" } ?: ""),
+                    fontSize = 13.sp,
+                    color = AppTheme.colors.textMuted,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Пустое состояние главного экрана: раньше свежая установка встречала
+        // пустой сеткой без единого слова. Теперь — объяснение и два пути.
+        if (filteredHabits.isEmpty() && displayTasks.isEmpty() && state.searchQuery.isBlank()) {
+            EmptyRhythmView(
+                onCreateHabit = { viewModel.openCreateHabit() },
+                haptics = haptics
+            )
+        }
 
         // Habit & Task Content: Grid or List
         if (state.isGridView) {

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.voicehabit.tracker.R
 import com.voicehabit.tracker.presentation.home.HomeViewModel
 import com.voicehabit.tracker.presentation.theme.*
+import java.time.LocalDate
 
 @Composable
 fun OverviewScreen(
@@ -347,7 +348,10 @@ fun OverviewScreen(
                                 .padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            val totalFocusMins = state.focusSessionCount * 25
+                            // Реальные минуты за сегодня. Раньше стояло
+                            // `focusSessionCount * 25` — то есть любая сессия,
+                            // даже 5-минутная, показывалась как 25 минут.
+                            val totalFocusMins = state.focusMinutesToday
                             Text(
                                 text = "${totalFocusMins}м",
                                 fontSize = 22.sp,
@@ -373,7 +377,11 @@ fun OverviewScreen(
                     ) {
                         val days = listOf("ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС")
                         days.forEachIndexed { index, day ->
-                            val isDone = index <= 3 // Sample consistency
+                            // Реальные отметки недели. Раньше здесь стояло
+                            // `index <= 3` — то есть карточка всегда показывала
+                            // «4 из 7» вне зависимости от того, что пользователь делал.
+                            val isDone = state.weekCompletedDays.getOrElse(index) { false }
+                            val isFuture = index > LocalDate.now().dayOfWeek.value - 1
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -399,7 +407,11 @@ fun OverviewScreen(
                                     text = day,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDone) AppTheme.colors.textPrimary else AppTheme.colors.textMuted
+                                    color = when {
+                                        isDone -> AppTheme.colors.textPrimary
+                                        isFuture -> AppTheme.colors.textMuted.copy(alpha = 0.4f)
+                                        else -> AppTheme.colors.textMuted
+                                    }
                                 )
                             }
                         }

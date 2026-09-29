@@ -56,20 +56,20 @@ class ObsidianMarkdownFormatterTest {
         assertTrue(md.contains("> Необходимо сконцентрироваться на ключевой цели."))
 
         // Key points
-        assertTrue(md.contains("## 📌 Ключевые тезисы"))
+        assertTrue(md.contains("## Ключевые тезисы"))
         assertTrue(md.contains("- Утро для архитектуры"))
         assertTrue(md.contains("- Вечер для рефлексии"))
 
         // Decisions (Dataview format - [x])
-        assertTrue(md.contains("## 🎯 Принятые решения"))
+        assertTrue(md.contains("## Принятые решения"))
         assertTrue(md.contains("- [x] Перенести созвоны на 15:00"))
 
         // Next steps (Dataview format - [ ])
-        assertTrue(md.contains("## 🚀 Следующие шаги (Action Items)"))
+        assertTrue(md.contains("## Следующие шаги (Action Items)"))
         assertTrue(md.contains("- [ ] Настроить скрипт сборки"))
 
         // Questions
-        assertTrue(md.contains("## ❓ Открытые вопросы"))
+        assertTrue(md.contains("## Открытые вопросы"))
         assertTrue(md.contains("- Как автоматизировать релизы?"))
 
         // Tip callout
@@ -81,7 +81,7 @@ class ObsidianMarkdownFormatterTest {
         assertTrue(md.contains("![[attachments/voice_123.m4a]]"))
 
         // Transcript
-        assertTrue(md.contains("## 📝 Стенограмма аудиозаписи"))
+        assertTrue(md.contains("## Стенограмма аудиозаписи"))
         assertTrue(md.contains("Сегодня я осознал, что утреннее время наиболее продуктивно."))
     }
 
@@ -100,9 +100,9 @@ class ObsidianMarkdownFormatterTest {
 
         assertTrue(md.contains("type: habits-and-tasks"))
         assertTrue(md.contains("Привычек: 2 (выполнено сегодня: 1) | Активных задач: 1"))
-        assertTrue(md.contains("- [x] Утренняя зарядка (🔥 7 дн.) #здоровье"))
+        assertTrue(md.contains("- [x] Утренняя зарядка (7 дн.) #здоровье"))
         assertTrue(md.contains("- [ ] Чтение книги #саморазвитие"))
-        assertTrue(md.contains("- [ ] Релиз v2.1 📅 2026-09-30 #priority/high"))
+        assertTrue(md.contains("- [ ] Релиз v2.1 до 2026-09-30 #priority/high"))
         assertTrue(md.contains("- [x] Купить блокнот"))
     }
 
@@ -137,7 +137,7 @@ class ObsidianMarkdownFormatterTest {
         assertTrue(md.contains("id: \"empty_1\""))
         assertTrue(md.contains("title: \"Запись в дневнике\""))
         assertFalse(md.contains("> [!quote]"))
-        assertFalse(md.contains("## 📌 Ключевые тезисы"))
+        assertFalse(md.contains("## Ключевые тезисы"))
         assertFalse(md.contains("## 🎯 Принятые решения"))
         assertFalse(md.contains("## 🚀 Следующие шаги"))
         assertFalse(md.contains("## ❓ Открытые вопросы"))

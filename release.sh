@@ -58,8 +58,26 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
 fi
 
 git add -A
-git commit -m "chore(release): bump version to $TAG and include latest updates" || true
+
+# Раньше здесь стояло `git commit ... || true`. Из-за этого любой сбой коммита
+# (хук, занятый индекс, не настроенный user.email) проглатывался, а тег
+# всё равно ставился — на ПРЕДЫДУЩИЙ коммит. Релиз собирался из старого кода
+# и публиковался под номером версии, в которой этого изменения не было.
+# Теперь любой сбой останавливает релиз.
+if git diff --cached --quiet; then
+  echo "Ошибка: нет изменений для релиза $TAG."
+  exit 1
+fi
+
+git commit -m "chore(release): bump version to $TAG and include latest updates"
+
 git tag "$TAG"
+
+# Тег указывает ровно на закоммиченный код: иначе при push разъедутся.
+if [ "$(git rev-list -n 1 "$TAG")" != "$(git rev-parse HEAD)" ]; then
+  echo "Ошибка: тег $TAG не указывает на текущий коммит. Релиз остановлен."
+  exit 1
+fi
 
 if git remote | grep -q 'origin'; then
   git push origin HEAD --tags

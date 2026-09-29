@@ -194,6 +194,10 @@ class SemanticExtractionResult(BaseModel):
 # ----------------------------------------------------
 class VoiceProcessResponse(BaseModel):
     success: bool = True
+    # Флаг недостоверности ответа. True означает, что аудио НЕ было разобрано,
+    # а поля ниже — выдуманные демо-данные. Клиент обязан это проверять и
+    # никогда не применять такие действия к реальным данным пользователя.
+    simulated: bool = Field(False, description="True если ответ синтетический (ключи не настроены или вызов провайдера упал)")
     raw_transcript: str = Field(..., description="Полный распознанный текст речи от Whisper")
     duration_seconds: float = Field(0.0, description="Длительность обработки")
     stt_duration_ms: int = Field(0, description="Время транскрипции в мс")

@@ -19,10 +19,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +80,7 @@ data class HubItem(
 
 @Composable
 fun HubScreen(viewModel: HomeViewModel) {
+    val state by viewModel.state.collectAsState()
     val items = listOf(
         HubItem(AppScreen.STATS, iconRes = com.voicehabit.tracker.R.drawable.ic_analytics_trend, title = "Статистика", subtitle = "Год, дни, фокус, настроение"),
         HubItem(AppScreen.ARCHIVE, vectorIcon = Icons.Default.Inventory2, title = "Архив и корзина", subtitle = "Восстановление за 30 дней"),
@@ -116,7 +122,65 @@ fun HubScreen(viewModel: HomeViewModel) {
                     viewModel.freezeToday()
                 }
             }
+            item {
+                HubActionCard(
+                    icon = Icons.Default.Search,
+                    title = "Поиск по всему",
+                    subtitle = "Привычки, задачи, конспекты"
+                ) {
+                    viewModel.openGlobalSearch()
+                }
+            }
+            item {
+                HubActionCard(
+                    icon = Icons.Default.BugReport,
+                    title = "Сообщить о проблеме",
+                    subtitle = "Баг или UI — с логом"
+                ) {
+                    viewModel.openFeedback()
+                }
+            }
+            item {
+                HubActionCard(
+                    icon = Icons.Default.Psychology,
+                    title = "Что обо мне понял",
+                    subtitle = state.inferredInsights.ifBlank { "Обновить выводы" }.take(48)
+                ) {
+                    viewModel.refreshInferredInsights()
+                }
+            }
+            item {
+                HubActionCard(
+                    icon = Icons.Default.CloudDownload,
+                    title = "Импорт из Obsidian",
+                    subtitle = "Markdown из буфера → конспект"
+                ) {
+                    val clipboard = (viewModel.getApplicationContext().getSystemService(
+                        android.content.Context.CLIPBOARD_SERVICE
+                    ) as android.content.ClipboardManager)
+                    val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(viewModel.getApplicationContext())?.toString().orEmpty()
+                    viewModel.importObsidianMarkdown(text)
+                }
+            }
         }
+    }
+    if (state.isGlobalSearchOpen) {
+        GlobalSearchSheet(
+            query = state.globalSearchQuery,
+            onQueryChange = { viewModel.setGlobalSearchQuery(it) },
+            habits = state.habits,
+            tasks = state.tasks + state.completedTasks,
+            digests = state.digests,
+            onDismiss = { viewModel.closeGlobalSearch() }
+        )
+    }
+    if (state.isFeedbackOpen) {
+        FeedbackSheet(
+            appVersion = com.voicehabit.tracker.BuildConfig.VERSION_NAME,
+            recentLog = viewModel.recentLogText(),
+            usageSummary = viewModel.usageSummary(),
+            onDismiss = { viewModel.closeFeedback() }
+        )
     }
 }
 

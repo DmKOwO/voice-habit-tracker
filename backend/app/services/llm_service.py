@@ -26,10 +26,13 @@ class LLMService:
         self,
         raw_transcript: str,
         context: ClientContext
-    ) -> Tuple[SemanticExtractionResult, int, str]:
+    ) -> Tuple[SemanticExtractionResult, int, str, bool]:
         """
         Извлекает структурированные действия (привычки, задачи, заметки) или дневниковую выжимку из текста речи.
-        Возвращает (SemanticExtractionResult, duration_ms, model_name).
+        Возвращает (SemanticExtractionResult, duration_ms, model_name, simulated).
+
+        simulated=True означает, что разбор НЕ выполнялся и данные подставлены.
+        Клиент обязан проверить флаг и не применять такой разбор к базе.
         """
         start_time = time.time()
         
@@ -95,9 +98,9 @@ class LLMService:
                 )
                 duration_ms = int((time.time() - start_time) * 1000)
                 result = SemanticExtractionResult.model_validate_json(response.text)
-                return result, duration_ms, f"google:{self.settings.gemini_model}"
+                return result, duration_ms, f"google:{self.settings.gemini_model}", False
             except Exception as e:
-                print(f"[LLM Error in Gemini] {e}. Falling back to smart mock.")
+                print(f"[LLM Error in Gemini] {type(e).__name__}: {e}. Falling back to smart mock.")
 
         # 2. Мок-режим с умным расчетом дат относительно реального клиентского времени
         duration_ms = int((time.time() - start_time) * 1000) + 150
@@ -208,4 +211,4 @@ class LLMService:
                     "Выделено 3 задачи с вычисленными сроками"
                 ]
             )
-        return mock_result, duration_ms, "mock:gemini-simulation"
+        return mock_result, duration_ms, "mock:gemini-simulation", True

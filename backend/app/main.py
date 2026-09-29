@@ -80,14 +80,18 @@ async def process_voice(
     4. Возвращает строго типизированный ответ для отображения в ReviewSheet и сохранения в Room DB.
     """
     start_total = time.time()
-    
-    # 1. Читаем байты аудио
+
+    context_unreliable = False
+
+    # 1. Читаем байты аудио.
+    # HTTPException — наследник Exception, поэтому его нельзя ловить этим же
+    # блоком: иначе собственная ошибка 400 переписывалась на «400: 400: ...».
     try:
         audio_bytes = await audio.read()
-        if not audio_bytes:
-            raise HTTPException(status_code=400, detail="Аудиофайл пуст")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Ошибка чтения аудио: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Ошибка чтения аудио: {type(e).__name__}: {e}")
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Аудиофайл пуст")
 
     # 2. Валидация контекста пользователя
     try:
@@ -100,30 +104,42 @@ async def process_voice(
             open_tasks=[TaskContextItem(**t) for t in tasks_raw]
         )
     except Exception as e:
-        # Если клиент передал некорректный JSON контекста, создаем пустой безопасный контекст
+        # Контекст нужен, чтобы сопоставить произнесённое с существующими
+        # привычками и задачами по id. При сбое сопоставление невозможно,
+        # поэтому честно помечаем ответ недостоверным и НЕ подставляем выдумку:
+        # иначе разбор молча теряет привязки к реальным объектам.
+        print(f"[Context parse error] {type(e).__name__}: {e}. Marking response as unreliable.")
         context = ClientContext(
             client_current_time=client_current_time,
             timezone=timezone,
             active_habits=[],
             open_tasks=[]
         )
+        context_unreliable = True
 
     # 3. Шаг 1: STT
-    raw_transcript, stt_ms, stt_model = await stt_service.transcribe(
+    raw_transcript, stt_ms, stt_model, stt_simulated = await stt_service.transcribe(
         audio_bytes=audio_bytes,
         filename=audio.filename or "recording.m4a"
     )
 
     # 4. Шаг 2: LLM
-    extraction, llm_ms, llm_model = await llm_service.extract_actions(
+    extraction, llm_ms, llm_model, llm_simulated = await llm_service.extract_actions(
         raw_transcript=raw_transcript,
         context=context
     )
 
     total_seconds = time.time() - start_total
 
+    # Если хотя бы один этап подставил данные, весь ответ недостоверен:
+    # смешивать настоящий транскрипт с выдуманным разбором нельзя.
+    # Потерянный контекст тоже делает ответ ненадёжным: без него разбор
+    # не может сопоставить произнесённое с реальными привычками и задачами.
+    simulated = stt_simulated or llm_simulated or context_unreliable
+
     return VoiceProcessResponse(
         success=True,
+        simulated=simulated,
         raw_transcript=raw_transcript,
         duration_seconds=total_seconds,
         stt_duration_ms=stt_ms,

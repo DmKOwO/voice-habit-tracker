@@ -4,6 +4,12 @@ import com.google.gson.annotations.SerializedName
 
 data class VoiceProcessResponseDto(
     @SerializedName("success") val success: Boolean,
+    /**
+     * true — ответ синтетический: аудио не разбиралось, поля подставлены.
+     * Старые серверы поле не отдают, поэтому отсутствие = false (доверяем).
+     * При true разбор не применяется к базе — см. VoiceRepositoryImpl.
+     */
+    @SerializedName("simulated") val simulated: Boolean = false,
     @SerializedName("raw_transcript") val rawTranscript: String,
     @SerializedName("duration_seconds") val durationSeconds: Double,
     @SerializedName("stt_duration_ms") val sttDurationMs: Int,

@@ -7,6 +7,8 @@ data class VoiceNoteAction(
     val rawTranscript: String = "",
     val summary: String = "",
     val habitsCompleted: List<HabitCompletedAction> = emptyList(),
+    /** Новые привычки, поставленные голосом. Применяются без отметки выполнения. */
+    val habitsToCreate: List<HabitCreateAction> = emptyList(),
     val tasksToAdd: List<TaskCreateAction> = emptyList(),
     val tasksToComplete: List<TaskCompleteAction> = emptyList(),
     val tasksToDelete: List<TaskDeleteAction> = emptyList(),
@@ -68,6 +70,19 @@ data class HabitCompletedAction(
     val habitTitle: String,
     val incrementValue: Double?,
     val comment: String?,
+    val isSelected: Boolean = true
+)
+
+/**
+ * Голосом поставили новую привычку («начни привычку бегать», «добавь привычку
+ * читать»). Раньше голос умел только отмечать существующие и ставить задачи —
+ * новую привычку приходилось заводить руками.
+ */
+@Immutable
+data class HabitCreateAction(
+    val title: String,
+    val targetValue: Double = 1.0,
+    val unit: String? = null,
     val isSelected: Boolean = true
 )
 

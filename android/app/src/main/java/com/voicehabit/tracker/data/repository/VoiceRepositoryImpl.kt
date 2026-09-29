@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.voicehabit.tracker.core.analysis.IntentRouter
+import com.voicehabit.tracker.core.logging.AppLogger
 import com.voicehabit.tracker.core.network.NetworkEndpointPolicy
 import com.voicehabit.tracker.data.local.SettingsManager
 import com.voicehabit.tracker.data.local.dao.HabitDao
@@ -171,6 +172,26 @@ class VoiceRepositoryImpl(
 
                 if (response.isSuccessful && response.body() != null) {
                     val dto = response.body()!!
+
+                    // Сервер честно сообщает, что разбор не выполнялся и данные
+                    // подставлены (ключи не настроены, провайдер упал или контекст
+                    // не распарсился). Такой ответ НЕЛЬЗЯ применять к базе: иначе
+                    // пользователь говорил про одно, а получал выдуманные отметки
+                    // привычек и выдуманные задачи — и не знал об этом.
+                    if (dto.simulated) {
+                        AppLogger.instance().w(
+                            "voice",
+                            "Бэкенд вернул синтетический разбор — не применяем к базе",
+                            mapOf("model" to dto.modelUsed)
+                        )
+                        return Result.failure(
+                            SyntheticBackendResultException(dto.modelUsed)
+                        )
+                    }
+
+                    val backendMode = dto.mode?.let { name ->
+                        runCatching { IntentMode.valueOf(name.uppercase()) }.getOrNull()
+                    }
                     val domainAction = VoiceNoteAction(
                         rawTranscript = dto.rawTranscript,
                         summary = dto.summary,
@@ -194,6 +215,13 @@ class VoiceRepositoryImpl(
                             QuickNoteAction(it.text, it.tags ?: emptyList())
                         },
                         insights = dto.insights ?: emptyList(),
+                        // Раньше серверный mode/confidence/digest молча выбрасывались,
+                        // и конспект из JOURNAL-ответа приходил в шторку как LOG с
+                        // уверенностью 0% и digest = null. Теперь пробрасываем.
+                        mode = backendMode ?: IntentMode.LOG,
+                        modeConfidence = dto.modeConfidence?.toFloat() ?: 0f,
+                        modeReason = dto.modeReason ?: "",
+                        digest = dto.digest?.toCaptureDigest(),
                         sttDurationMs = dto.sttDurationMs,
                         llmDurationMs = dto.llmDurationMs,
                         modelUsed = dto.modelUsed
@@ -211,8 +239,17 @@ class VoiceRepositoryImpl(
                         )
                     )
                 }
+            } catch (e: SyntheticBackendResultException) {
+                return Result.failure(e)
             } catch (e: Exception) {
-                // Игнорируем и идем в офлайн-парсер
+                // Раньше здесь был пустой catch: падение бэкенда было неотличимо от
+                // «бэкенд не настроен». Теперь причина попадает в лог, а разбор
+                // всё равно уходит в офлайн-парсер — он не зависит от сети.
+                AppLogger.instance().w(
+                    "voice",
+                    "Бэкенд недоступен, ухожу в офлайн-разбор",
+                    mapOf("err" to (e.message ?: e::class.java.simpleName))
+                )
             }
         }
 
@@ -296,20 +333,24 @@ class VoiceRepositoryImpl(
             )
 
             if (geminiRes.isSuccess) {
-                val (jsonObj, llmMs) = geminiRes.getOrThrow()
-                val domainAction = mapJsonObjectToDomain(jsonObj, transcript, 0, llmMs, "Gemini 2.5 Flash")
-                val logId = saveVoiceLog(
-                    audioPath,
-                    transcript,
-                    domainAction.summary,
-                    VoiceUploadWorker.VOICE_STATUS_PROCESSED
-                )
-                return Result.success(
-                    persistDigest(
-                        domainAction.copy(logId = logId, processingMode = VoiceProcessingMode.CLOUD),
-                        logId
+                runCatching {
+                    val (jsonObj, llmMs) = geminiRes.getOrThrow()
+                    val domainAction = mapJsonObjectToDomain(jsonObj, transcript, 0, llmMs, "Gemini 2.5 Flash")
+                    val logId = saveVoiceLog(
+                        audioPath,
+                        transcript,
+                        domainAction.summary,
+                        VoiceUploadWorker.VOICE_STATUS_PROCESSED
                     )
-                )
+                    return Result.success(
+                        persistDigest(
+                            domainAction.copy(logId = logId, processingMode = VoiceProcessingMode.CLOUD),
+                            logId
+                        )
+                    )
+                }.onFailure { err ->
+                    AppLogger.instance().w("voice", "Сбой маппинга ответа Gemini: ${err.message}", mapOf("err" to (err.message ?: "")))
+                }
             }
         }
 
@@ -378,62 +419,98 @@ class VoiceRepositoryImpl(
         llmMs: Int,
         modelUsed: String
     ): VoiceNoteAction {
-        val summary = json.get("summary")?.asString ?: "Запись распознана"
+        val summary = runCatching {
+            json.get("summary")?.takeIf { !it.isJsonNull && it.isJsonPrimitive }?.asString
+        }.getOrNull() ?: "Запись распознана"
 
         val habitsList = mutableListOf<HabitCompletedAction>()
-        json.getAsJsonArray("habits_completed")?.forEach { elem ->
-            val obj = elem.asJsonObject
-            val id = if (obj.has("habit_id") && !obj.get("habit_id").isJsonNull) obj.get("habit_id").asString else null
-            val title = obj.get("habit_title")?.asString ?: "Привычка"
-            val inc = if (obj.has("increment_value") && !obj.get("increment_value").isJsonNull) obj.get("increment_value").asDouble else null
-            val comm = if (obj.has("comment") && !obj.get("comment").isJsonNull) obj.get("comment").asString else null
-            habitsList.add(HabitCompletedAction(id, title, inc, comm))
-        }
-
-        val tasksList = mutableListOf<TaskCreateAction>()
-        json.getAsJsonArray("tasks_to_add")?.forEach { elem ->
-            val obj = elem.asJsonObject
-            val title = obj.get("title")?.asString ?: "Задача"
-            val due = if (obj.has("due_date") && !obj.get("due_date").isJsonNull) obj.get("due_date").asString else null
-            val prio = obj.get("priority")?.asString ?: "MEDIUM"
-            val cat = obj.get("category")?.asString ?: "General"
-            val type = obj.get("task_type")?.asString ?: TaskType.QUICK.name
-            tasksList.add(TaskCreateAction(title, due, prio, cat, taskType = type))
-        }
-
-        val completedTasksList = mutableListOf<TaskCompleteAction>()
-        json.getAsJsonArray("tasks_to_complete")?.forEach { elem ->
-            val obj = elem.asJsonObject
-            val id = if (obj.has("task_id") && !obj.get("task_id").isJsonNull) obj.get("task_id").asString else null
-            val title = obj.get("task_title")?.asString ?: ""
-            completedTasksList.add(TaskCompleteAction(id, title))
-        }
-
-        val notesList = mutableListOf<QuickNoteAction>()
-        json.getAsJsonArray("quick_notes")?.forEach { elem ->
-            val obj = elem.asJsonObject
-            val text = obj.get("text")?.asString ?: ""
-            val tags = mutableListOf<String>()
-            obj.getAsJsonArray("tags")?.forEach { tags.add(it.asString) }
-            notesList.add(QuickNoteAction(text, tags))
-        }
-
-        val insightsList = mutableListOf<String>()
-        json.getAsJsonArray("insights")?.forEach { elem ->
-            if (elem.isJsonPrimitive) insightsList.add(elem.asString)
-        }
-
-        // Автоматическое пополнение прозрачной памяти фактами от ИИ
-        json.getAsJsonArray("inferred_facts")?.forEach { elem ->
-            if (elem.isJsonPrimitive) {
-                val fact = elem.asString.trim()
-                if (fact.isNotBlank()) {
-                    settingsManager?.addMemoryFact(fact)
+        if (json.has("habits_completed") && json.get("habits_completed").isJsonArray) {
+            json.getAsJsonArray("habits_completed").forEach { elem ->
+                if (elem.isJsonObject) {
+                    val obj = elem.asJsonObject
+                    val id = if (obj.has("habit_id") && !obj.get("habit_id").isJsonNull && obj.get("habit_id").isJsonPrimitive) obj.get("habit_id").asString else null
+                    val title = if (obj.has("habit_title") && !obj.get("habit_title").isJsonNull && obj.get("habit_title").isJsonPrimitive) obj.get("habit_title").asString else "Привычка"
+                    val inc = runCatching {
+                        if (obj.has("increment_value") && !obj.get("increment_value").isJsonNull) obj.get("increment_value").asDouble else null
+                    }.getOrNull()
+                    val comm = if (obj.has("comment") && !obj.get("comment").isJsonNull && obj.get("comment").isJsonPrimitive) obj.get("comment").asString else null
+                    habitsList.add(HabitCompletedAction(id, title, inc, comm))
                 }
             }
         }
 
-        val digest = json.getAsJsonObject("digest")?.let { parseDigest(it, rawTranscript) }
+        val tasksList = mutableListOf<TaskCreateAction>()
+        if (json.has("tasks_to_add") && json.get("tasks_to_add").isJsonArray) {
+            json.getAsJsonArray("tasks_to_add").forEach { elem ->
+                if (elem.isJsonObject) {
+                    val obj = elem.asJsonObject
+                    val title = if (obj.has("title") && !obj.get("title").isJsonNull && obj.get("title").isJsonPrimitive) obj.get("title").asString else "Задача"
+                    val due = if (obj.has("due_date") && !obj.get("due_date").isJsonNull && obj.get("due_date").isJsonPrimitive) obj.get("due_date").asString else null
+                    val prio = if (obj.has("priority") && !obj.get("priority").isJsonNull && obj.get("priority").isJsonPrimitive) obj.get("priority").asString else "MEDIUM"
+                    val cat = if (obj.has("category") && !obj.get("category").isJsonNull && obj.get("category").isJsonPrimitive) obj.get("category").asString else "General"
+                    val type = if (obj.has("task_type") && !obj.get("task_type").isJsonNull && obj.get("task_type").isJsonPrimitive) obj.get("task_type").asString else TaskType.QUICK.name
+                    tasksList.add(TaskCreateAction(title, due, prio, cat, taskType = type))
+                }
+            }
+        }
+
+        val completedTasksList = mutableListOf<TaskCompleteAction>()
+        if (json.has("tasks_to_complete") && json.get("tasks_to_complete").isJsonArray) {
+            json.getAsJsonArray("tasks_to_complete").forEach { elem ->
+                if (elem.isJsonObject) {
+                    val obj = elem.asJsonObject
+                    val id = if (obj.has("task_id") && !obj.get("task_id").isJsonNull && obj.get("task_id").isJsonPrimitive) obj.get("task_id").asString else null
+                    val title = if (obj.has("task_title") && !obj.get("task_title").isJsonNull && obj.get("task_title").isJsonPrimitive) obj.get("task_title").asString else ""
+                    completedTasksList.add(TaskCompleteAction(id, title))
+                }
+            }
+        }
+
+        val notesList = mutableListOf<QuickNoteAction>()
+        if (json.has("quick_notes") && json.get("quick_notes").isJsonArray) {
+            json.getAsJsonArray("quick_notes").forEach { elem ->
+                if (elem.isJsonObject) {
+                    val obj = elem.asJsonObject
+                    val text = if (obj.has("text") && !obj.get("text").isJsonNull && obj.get("text").isJsonPrimitive) obj.get("text").asString else ""
+                    val tags = mutableListOf<String>()
+                    if (obj.has("tags") && obj.get("tags").isJsonArray) {
+                        obj.getAsJsonArray("tags").forEach { if (it.isJsonPrimitive) tags.add(it.asString) }
+                    }
+                    notesList.add(QuickNoteAction(text, tags))
+                }
+            }
+        }
+
+        val insightsList = mutableListOf<String>()
+        if (json.has("insights") && json.get("insights").isJsonArray) {
+            json.getAsJsonArray("insights").forEach { elem ->
+                if (elem.isJsonPrimitive) insightsList.add(elem.asString)
+            }
+        }
+
+        // Автоматическое пополнение прозрачной памяти фактами от ИИ
+        if (json.has("inferred_facts") && json.get("inferred_facts").isJsonArray) {
+            json.getAsJsonArray("inferred_facts").forEach { elem ->
+                if (elem.isJsonPrimitive) {
+                    val fact = elem.asString.trim()
+                    if (fact.isNotBlank()) {
+                        settingsManager?.addMemoryFact(fact)
+                    }
+                }
+            }
+        }
+
+        val digest = if (json.has("digest") && json.get("digest").isJsonObject) {
+            json.getAsJsonObject("digest")?.let { parseDigest(it, rawTranscript) }
+        } else null
+
+        val confidence = runCatching {
+            json.get("mode_confidence")?.takeIf { !it.isJsonNull && it.isJsonPrimitive }?.asDouble?.toFloat()
+        }.getOrNull() ?: IntentRouter.route(rawTranscript).confidence
+
+        val reason = runCatching {
+            json.get("mode_reason")?.takeIf { !it.isJsonNull && it.isJsonPrimitive }?.asString
+        }.getOrNull() ?: ""
 
         return VoiceNoteAction(
             rawTranscript = rawTranscript,
@@ -444,9 +521,8 @@ class VoiceRepositoryImpl(
             quickNotes = notesList,
             digest = digest,
             mode = resolveMode(json, rawTranscript),
-            modeConfidence = json.get("mode_confidence")?.takeIf { !it.isJsonNull }?.asDouble?.toFloat()
-                ?: IntentRouter.route(rawTranscript).confidence,
-            modeReason = json.get("mode_reason")?.takeIf { !it.isJsonNull }?.asString ?: "",
+            modeConfidence = confidence,
+            modeReason = reason,
             insights = insightsList,
             sttDurationMs = sttMs,
             llmDurationMs = llmMs,

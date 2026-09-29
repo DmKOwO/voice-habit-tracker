@@ -34,7 +34,8 @@ fun VoiceQueueBottomSheet(
     logs: List<VoiceLogEntity>,
     onReapply: (VoiceLogEntity) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onRetry: (String) -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
 
@@ -196,8 +197,31 @@ fun VoiceQueueBottomSheet(
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    // Неудавшиеся и висящие в очереди можно разобрать
+                                    // заново — аудио и транскрипт уже сохранены.
+                                    if (log.status == VoiceUploadWorker.VOICE_STATUS_FAILED ||
+                                        log.status == VoiceUploadWorker.VOICE_STATUS_PENDING_UPLOAD
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { onRetry(log.id) },
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Refresh,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = AppTheme.colors.accentSecondary
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Разобрать заново", fontSize = 11.sp, color = AppTheme.colors.accentSecondary)
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
                                     OutlinedButton(
                                         onClick = { onReapply(log) },
                                         shape = RoundedCornerShape(10.dp),
@@ -205,7 +229,7 @@ fun VoiceQueueBottomSheet(
                                         modifier = Modifier.height(32.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Refresh,
+                                            imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             modifier = Modifier.size(14.dp),
                                             tint = DuroOrange

@@ -28,7 +28,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
@@ -82,6 +84,8 @@ class HomeViewModel @JvmOverloads constructor(
         updateDateAndYearProgress()
         observeData()
         seedInitialDataIfNeeded()
+        restorePersistedUi()
+        runCatching { container.usageAnalytics.trackAppOpen() }
         _state.update {
             it.copy(
                 hasApiKeysConfigured = settings.hasDirectKeys,
@@ -163,14 +167,41 @@ class HomeViewModel @JvmOverloads constructor(
         val totalDays = if (cal.getActualMaximum(Calendar.DAY_OF_YEAR) > 365) 366 else 365
         val yearPct = (dayOfYear * 100) / totalDays
 
-        val dateFormat = SimpleDateFormat("MMM d", Locale.US)
-        val dateString = dateFormat.format(cal.time).uppercase()
+        // Русская локаль: приложение русскоязычное, а «SEP 25» на главном экране
+        // выглядело как недоделанный перевод.
+        val dateFormat = SimpleDateFormat("d MMMM", Locale("ru"))
+        val dateString = dateFormat.format(cal.time).replaceFirstChar { it.uppercase() }
 
-        _state.update {
-            it.copy(
-                yearProgressPercentage = yearPct,
-                dateDisplayString = dateString
-            )
+        // Реальная неделя по отметкам привычек вместо жёсткой отрисовки 4 из 7.
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val weekStart = today.minusDays(((today.dayOfWeek.value + 6) % 7).toLong())
+        val weekEnd = weekStart.plusDays(6)
+
+        viewModelScope.launch(dispatchers.io) {
+            val completedDays = runCatching {
+                db.habitDao().getLogsBetween(
+                    weekStart.atStartOfDay(zone).toInstant().toEpochMilli(),
+                    weekEnd.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                ).map { Instant.ofEpochMilli(it.completedAt).atZone(zone).toLocalDate() }
+                    .toSet()
+            }.getOrDefault(emptySet())
+
+            val weekFlags = (0..6).map { weekStart.plusDays(it.toLong()) in completedDays }
+
+            val focusMinutes = runCatching {
+                val dayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
+                db.focusDao().since(dayStart).sumOf { it.durationMin }
+            }.getOrDefault(0)
+
+            _state.update {
+                it.copy(
+                    yearProgressPercentage = yearPct,
+                    dateDisplayString = dateString,
+                    weekCompletedDays = weekFlags,
+                    focusMinutesToday = focusMinutes
+                )
+            }
         }
     }
 
@@ -307,6 +338,64 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun setSelectedTab(tab: String) {
         _state.update { it.copy(selectedTab = tab) }
+        persistUiState()
+    }
+
+    /**
+     * Отказ в микрофоне — не тупик: объясняем, что текст и офлайн-режим работают,
+     * и оставляем возможность спросить снова по кнопке (раньше отказ был dead end
+     * на всё время жизни процесса).
+     */
+    fun onMicDenied() {
+        _state.update {
+            it.copy(
+                infoMessage = "Без микрофона запись не выйдет, но текст и кнопки работают. " +
+                    "Нажмите на микрофон ещё раз, чтобы разрешить доступ."
+            )
+        }
+    }
+
+    /**
+     * Переживание смерти процесса без SavedStateHandle: класс создаётся фабрикой
+     * только с Application, поэтому ключевое UI-состояние дублируем в prefs.
+     * При старте восстанавливаем вкладку/сетку/фильтр и незаконченный разбор
+     * (по logId из voice_logs).
+     */
+    private fun persistUiState() {
+        runCatching {
+            val s = _state.value
+            settings.putString("ui_selected_tab", s.selectedTab)
+            settings.putString("ui_main_tab", s.selectedMainTab.name)
+            settings.putBoolean("ui_grid", s.isGridView)
+            settings.putString("ui_pending_log", s.pendingReviewAction?.logId ?: "")
+        }
+    }
+
+    fun restorePersistedUi() {
+        runCatching {
+            val tab = settings.getString("ui_selected_tab", "All")
+            val mainTab = runCatching {
+                MainTab.valueOf(settings.getString("ui_main_tab", MainTab.RHYTHM.name))
+            }.getOrDefault(MainTab.RHYTHM)
+            _state.update { it.copy(selectedTab = tab, selectedMainTab = mainTab) }
+            val pendingLog = settings.getString("ui_pending_log", "")
+            if (pendingLog.isNotBlank()) {
+                viewModelScope.launch(dispatchers.io) {
+                    val log = db.voiceLogDao().getVoiceLogById(pendingLog)
+                    if (log != null && log.rawTranscript.isNotBlank()) {
+                        val action = processVoiceUseCase.processText(log.rawTranscript).getOrNull()
+                        if (action != null) {
+                            _state.update {
+                                it.copy(
+                                    pendingReviewAction = action.copy(logId = log.id),
+                                    infoMessage = "Восстановил незаконченный разбор записи."
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun setGridView(isGrid: Boolean) {
@@ -366,6 +455,17 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun startRecording() {
         liveTranscript = null
+        // Foreground-сервис держит процесс живым при выключенном экране.
+        runCatching {
+            val app = getApplication<Application>()
+            val intent = android.content.Intent(app, com.voicehabit.tracker.worker.VoiceRecordingService::class.java)
+                .setAction(com.voicehabit.tracker.worker.VoiceRecordingService.ACTION_START)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        }
         val audioFile = File(getApplication<Application>().cacheDir, "voice_temp_${System.currentTimeMillis()}.m4a")
         audioRecorder.startRecording(audioFile)
         if (speechRecognizer.isAvailable()) {
@@ -385,6 +485,7 @@ class HomeViewModel @JvmOverloads constructor(
     }
 
     fun stopRecording() {
+        stopRecordingService()
         speechRecognizer.stopListening()
         // Длительность снимаем ДО stopRecording(): он обнуляет счётчик, и конспект
         // лишился бы единственной цифры, объясняющей, сколько это было минут речи.
@@ -402,56 +503,89 @@ class HomeViewModel @JvmOverloads constructor(
         _state.update { it.copy(isLoading = true, infoMessage = "Обрабатываем запись...") }
 
         viewModelScope.launch {
-            // F1: нет транскрипта с микрофона, но Vosk-модель готова — расшифровываем файл локально.
-            if (capturedTranscript.isNullOrBlank() && settings.offlineSttEnabled && container.vosk.isReady()) {
-                _state.update { it.copy(infoMessage = "Офлайн-распознавание (Vosk)…") }
-                val voskText = withContext(dispatchers.io) { container.vosk.transcribe(file) }
-                if (!voskText.isNullOrBlank()) {
-                    capturedTranscript = voskText
-                    liveTranscript = voskText
-                    logger.i("voice", "Vosk расшифровал запись локально")
+            try {
+                // F1: нет транскрипта с микрофона, но Vosk-модель готова — расшифровываем файл локально.
+                if (capturedTranscript.isNullOrBlank() && settings.offlineSttEnabled && container.vosk.isReady()) {
+                    _state.update { it.copy(infoMessage = "Офлайн-распознавание (Vosk)…") }
+                    val voskText = withContext(dispatchers.io) { container.vosk.transcribe(file) }
+                    if (!voskText.isNullOrBlank()) {
+                        capturedTranscript = voskText
+                        liveTranscript = voskText
+                        logger.i("voice", "Vosk расшифровал запись локально")
+                    }
                 }
-            }
-            logger.startOperation(VOICE_OPERATION, "Расшифровка и разбор записи")
-            val result = processVoiceUseCase(
-                file,
-                spokenTranscript = capturedTranscript,
-                speechSeconds = speechSeconds
-            )
-            result.onSuccess { action ->
-                logger.i(
-                    "voice",
-                    "Запись разобрана",
-                    mapOf(
-                        "mode" to action.processingMode.name,
-                        "sttMs" to action.sttDurationMs.toString(),
-                        "llmMs" to action.llmDurationMs.toString()
+                logger.startOperation(VOICE_OPERATION, "Расшифровка и разбор записи")
+                val result = runCatching {
+                    processVoiceUseCase(
+                        file,
+                        spokenTranscript = capturedTranscript,
+                        speechSeconds = speechSeconds
                     )
-                )
-                logger.finishOperation(VOICE_OPERATION, action.summary)
-                enqueueRetryIfTranscriptMissing(file, action)
-                handleParsedVoiceAction(action)
-            }.onFailure { error ->
-                // Блокирующий first() по Flow раньше выполнялся в UI-потоке и зависал
-                // интерфейс до следующей эмиссии. Здесь только suspend-вызовы БД.
-                val fallbackAction = withContext(dispatchers.io) {
-                    com.voicehabit.tracker.data.remote.OfflineVoiceParser.parse(
-                        capturedTranscript ?: "Не удалось распознать речь",
-                        container.voiceRepository.currentHabitsForParsing(),
-                        container.voiceRepository.currentTasksForParsing()
+                }.getOrElse { error ->
+                    Result.failure(error)
+                }
+
+                result.onSuccess { action ->
+                    logger.i(
+                        "voice",
+                        "Запись разобрана",
+                        mapOf(
+                            "mode" to action.processingMode.name,
+                            "sttMs" to action.sttDurationMs.toString(),
+                            "llmMs" to action.llmDurationMs.toString()
+                        )
+                    )
+                    logger.finishOperation(VOICE_OPERATION, action.summary)
+                    enqueueRetryIfTranscriptMissing(file, action)
+                    handleParsedVoiceAction(action)
+                }.onFailure { error ->
+                    logger.w(
+                        "voice",
+                        "Ошибка обработки голоса: ${error.message}",
+                        mapOf("err" to (error.message ?: error::class.java.simpleName))
+                    )
+                    // Блокирующий first() по Flow раньше выполнялся в UI-потоке и зависал
+                    // интерфейс до следующей эмиссии. Здесь только suspend-вызовы БД.
+                    val fallbackAction = withContext(dispatchers.io) {
+                        com.voicehabit.tracker.data.remote.OfflineVoiceParser.parse(
+                            capturedTranscript ?: "Не удалось распознать речь",
+                            container.voiceRepository.currentHabitsForParsing(),
+                            container.voiceRepository.currentTasksForParsing()
+                        )
+                    }
+                    logger.w("voice", "Офлайн-разбор: ${fallbackAction.summary}")
+                    logger.finishOperation(VOICE_OPERATION, fallbackAction.summary)
+                    handleParsedVoiceAction(fallbackAction)
+                }
+            } catch (t: Throwable) {
+                logger.e("voice", "Непредвиденное падение при обработке аудио", error = t)
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        infoMessage = null,
+                        errorMessage = "Не удалось обработать аудио: ${t.localizedMessage ?: "Сбой"}"
                     )
                 }
-                logger.w("voice", "Офлайн-разбор: ${fallbackAction.summary}")
-                logger.finishOperation(VOICE_OPERATION, fallbackAction.summary)
-                handleParsedVoiceAction(fallbackAction)
             }
         }
     }
 
     fun cancelRecording() {
+        stopRecordingService()
         speechRecognizer.stopListening()
         liveTranscript = null
         audioRecorder.cancelRecording()
+    }
+
+    private fun stopRecordingService() {
+        runCatching {
+            getApplication<Application>().stopService(
+                android.content.Intent(
+                    getApplication(),
+                    com.voicehabit.tracker.worker.VoiceRecordingService::class.java
+                )
+            )
+        }
     }
 
     private fun handleParsedVoiceAction(action: VoiceNoteAction) {
@@ -682,6 +816,10 @@ class HomeViewModel @JvmOverloads constructor(
      */
     fun overrideMode(action: VoiceNoteAction, mode: IntentMode) {
         if (action.mode == mode && action.modeIsOverridden) return
+        // Обучение на правках (#6): запоминаем выбор для похожих фраз в будущем.
+        if (action.rawTranscript.isNotBlank()) {
+            runCatching { container.correctionStore.record(action.rawTranscript, mode) }
+        }
         val transcript = action.rawTranscript
         if (transcript.isBlank()) {
             _state.update {
@@ -726,6 +864,7 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun setSelectedMainTab(tab: MainTab) {
         _state.update { it.copy(selectedMainTab = tab, screen = AppScreen.HOME) }
+        persistUiState()
     }
 
     private var focusTimerJob: kotlinx.coroutines.Job? = null
@@ -1133,6 +1272,62 @@ class HomeViewModel @JvmOverloads constructor(
         _state.update { it.copy(isVoiceQueueOpen = false) }
     }
 
+    // ---------- 1.3.0: поиск, обратная связь, автовыводы ----------
+    fun openGlobalSearch() = _state.update { it.copy(isGlobalSearchOpen = true) }
+    fun closeGlobalSearch() = _state.update { it.copy(isGlobalSearchOpen = false, globalSearchQuery = "") }
+    fun setGlobalSearchQuery(q: String) = _state.update { it.copy(globalSearchQuery = q) }
+    fun openFeedback() = _state.update { it.copy(isFeedbackOpen = true) }
+    fun closeFeedback() = _state.update { it.copy(isFeedbackOpen = false) }
+
+    fun getApplicationContext(): android.content.Context = getApplication()
+
+    /**
+     * Импорт конспекта из Markdown (вторая сторона Obsidian-синхронизации).
+     * Источник — буфер обмена: скопируйте заметку в Obsidian, нажмите импорт.
+     */
+    fun importObsidianMarkdown(markdown: String) {
+        if (markdown.isBlank()) {
+            _state.update { it.copy(errorMessage = "Буфер пуст: скопируйте Markdown-заметку из Obsidian.") }
+            return
+        }
+        viewModelScope.launch(dispatchers.io) {
+            val record = com.voicehabit.tracker.core.obsidian.ObsidianImporter.parseMarkdown("", markdown)
+            if (record == null) {
+                _state.update { it.copy(errorMessage = "Не похоже на конспект: нет заголовка и тезисов.") }
+            } else {
+                digestRepository.upsert(record)
+                _state.update { it.copy(infoMessage = "Импортирован конспект: ${record.title.take(40)}") }
+            }
+        }
+    }
+
+    fun usageSummary(): String =
+        container.usageAnalytics.snapshot().entries.joinToString("\n") { "${it.key}: ${it.value}" } +
+            "\nПравок режима: ${container.correctionStore.correctionsCount()}"
+
+    fun recentLogText(): String = runCatching {
+        _state.value.logEvents.takeLast(40).joinToString("\n") { "${it.level} ${it.tag}: ${it.message}" }
+    }.getOrDefault("")
+
+    /**
+     * Автовыводы о пользователе из задач и конспектов. Ручные факты персоны
+     * не трогает — результат лежит отдельно и ручное всегда главнее.
+     */
+    fun refreshInferredInsights() {
+        viewModelScope.launch(dispatchers.io) {
+            val tasks = taskRepository.getAllTasksList().map { it.title }
+            val digests = runCatching { digestRepository.recent(50) }.getOrDefault(emptyList())
+                .map { (it.title + " " + it.gist) }
+            val r = com.voicehabit.tracker.core.analysis.UserInsightEngine.infer(tasks, digests)
+            val text = buildString {
+                r.profession?.let { append("Похоже, вы: $it. ") }
+                if (r.topics.isNotEmpty()) append("Частые темы: ${r.topics.joinToString(", ")}.")
+            }.ifBlank { "Пока мало данных для выводов." }
+            settings.inferredInsights = text
+            _state.update { it.copy(inferredInsights = text, infoMessage = text) }
+        }
+    }
+
     fun reapplyVoiceLog(log: com.voicehabit.tracker.data.local.entity.VoiceLogEntity) {
         viewModelScope.launch {
             val result = processVoiceUseCase.processText(log.rawTranscript)
@@ -1143,6 +1338,46 @@ class HomeViewModel @JvmOverloads constructor(
                 _state.update {
                     it.copy(
                         infoMessage = "Запись от ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date(log.createdAt))} повторно применена."
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * «Разобрать заново»: запись уже лежит в voice_logs с аудио и/или транскриптом,
+     * но первый разбор не удался (не было сети, упал провайдер, Vosk не был готов).
+     * Пробуем полный пайплайн: сначала аудиофайл через processVoiceUseCase,
+     * при отсутствии файла — текст через processText. Статус обновляется,
+     * запись не дублируется.
+     */
+    fun retryVoiceLog(logId: String) {
+        viewModelScope.launch(dispatchers.io) {
+            val log = db.voiceLogDao().getVoiceLogById(logId) ?: return@launch
+            _state.update { it.copy(isLoading = true, infoMessage = "Разбираю запись заново…") }
+            // Учитываем обучение на правках: если пользователь уже правил похожий
+            // разбор, сохранённый режим имеет приоритет над правилами.
+            val learned = container.correctionStore.lookup(log.rawTranscript)
+            val result = runCatching {
+                val audioFile = java.io.File(log.audioPath)
+                if (audioFile.exists() && audioFile.length() > 0) {
+                    processVoiceUseCase(audioFile, spokenTranscript = log.rawTranscript.ifBlank { null }, speechSeconds = 0)
+                } else {
+                    processVoiceUseCase.processText(log.rawTranscript)
+                }
+            }.getOrElse { Result.failure(it) }
+            result.onSuccess { action ->
+                val finalAction = if (learned != null && !action.modeIsOverridden) {
+                    action.copy(mode = learned, modeIsOverridden = false)
+                } else action
+                handleParsedVoiceAction(finalAction)
+                db.voiceLogDao().updateStatus(logId, VoiceUploadWorker.VOICE_STATUS_PROCESSED, finalAction.summary)
+            }.onFailure { e ->
+                db.voiceLogDao().updateStatus(logId, VoiceUploadWorker.VOICE_STATUS_FAILED, log.summary)
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Не разобралось и сейчас: ${e.message ?: "неизвестная ошибка"}. Аудио сохранено, попробуйте позже."
                     )
                 }
             }
@@ -1354,7 +1589,16 @@ class HomeViewModel @JvmOverloads constructor(
     fun setHabitSchedule(id: String, days: Set<Int>) {
         viewModelScope.launch {
             val habit = habitRepository.getHabitById(id) ?: return@launch
-            habitRepository.updateScheduleAndTags(id, days, habit.tags)
+            val safeDays = days.ifEmpty { (1..7).toSet() }
+            habitRepository.updateScheduleAndTags(id, safeDays, habit.tags)
+            val updated = habitRepository.getHabitById(id) ?: return@launch
+            _state.update { s ->
+                if (s.selectedHabitForDetail?.id == id) {
+                    s.copy(selectedHabitForDetail = updated)
+                } else s
+            }
+            DuroHabitWidgetProvider.updateAllWidgets(getApplication())
+            com.voicehabit.tracker.widget.DuroHabitCardWidgetProvider.updateAllCardWidgets(getApplication())
         }
     }
 

@@ -18,7 +18,10 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,24 @@ fun HabitDetailBottomSheet(
     }
     val deleteInteractions = remember(habit.id) { MutableInteractionSource() }
     val actionInteractions = remember(habit.id, habit.isCompletedToday) { MutableInteractionSource() }
+    // Подтверждение удаления: раньше тап по корзине стирал привычку с первого
+    // нажатия без единого вопроса.
+    var showDeleteConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Удалить привычку?") },
+            text = { Text("«${habit.title}» уйдёт вместе со всей историей отметок. Это нельзя отменить.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) {
+                    Text("Удалить", color = DairyDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Оставить") }
+            }
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -96,7 +117,7 @@ fun HabitDetailBottomSheet(
                 }
 
                 IconButton(
-                    onClick = onDelete,
+                    onClick = { showDeleteConfirm = true },
                     interactionSource = deleteInteractions,
                     modifier = Modifier.duroPressScale(deleteInteractions, pressedScale = 0.88f)
                 ) {
@@ -119,6 +140,29 @@ fun HabitDetailBottomSheet(
                 )
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Семантика привычки: норма, воздержание, цель на неделю.
+            run {
+                val tagsCsv = habit.tags.joinToString(",")
+                val avoid = com.voicehabit.tracker.core.analysis.HabitTagCodec.isAvoidTags(tagsCsv)
+                val perWeek = com.voicehabit.tracker.core.analysis.HabitTagCodec.weeklyTargetTags(tagsCsv)
+                val norm = buildString {
+                    if (habit.targetValue != 1.0 || habit.unit != null) {
+                        append("Норма: ${habit.targetValue}" + (habit.unit?.let { " $it" } ?: ""))
+                    }
+                    if (avoid) { if (isNotEmpty()) append(" · "); append("Воздержание") }
+                    if (perWeek > 0) { if (isNotEmpty()) append(" · "); append("Цель: $perWeek раз в неделю") }
+                }
+                if (norm.isNotEmpty()) {
+                    Text(
+                        text = norm,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accentColor,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+                }
             }
 
             // Stats Cards Row

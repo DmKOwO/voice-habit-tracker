@@ -126,12 +126,32 @@ class HabitRepositoryImpl(
         return entities.map { entity ->
             val todayValue = todayLogsGrouped[entity.id]?.sumOf { it.valueLogged } ?: 0.0
             val history = computeHistory(entity.id, pastLogsGrouped, now)
+            val scheduleDaysSet = entity.scheduleDays.split(",")
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet()
+                .ifEmpty { (1..7).toSet() }
+
+            val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+            val startEpoch = today.toEpochDay() - (HISTORY_DAYS - 1)
+            val epochs = logDayEpochs(pastLogsGrouped[entity.id], now)
+
+            val scheduledDaysInWindow = (0 until HISTORY_DAYS).count { offset ->
+                val date = java.time.LocalDate.ofEpochDay(startEpoch + offset)
+                date.dayOfWeek.value in scheduleDaysSet
+            }
+            val completedScheduledInWindow = (0 until HISTORY_DAYS).count { offset ->
+                val epoch = startEpoch + offset
+                val date = java.time.LocalDate.ofEpochDay(epoch)
+                date.dayOfWeek.value in scheduleDaysSet && epochs.contains(epoch)
+            }
+            val completionPct = if (scheduledDaysInWindow == 0) 100 else minOf(100, (completedScheduledInWindow * 100) / scheduledDaysInWindow)
+
             entity.toHabit(
                 todayValue = todayValue,
                 isCompletedToday = todayValue >= entity.targetValue,
                 history = history,
                 weekly = computeWeekly(entity.id, pastLogsGrouped, now),
-                completionPercentage = if (history.isEmpty()) 0 else (history.count { it } * 100) / history.size
+                completionPercentage = completionPct
             )
         }
     }
