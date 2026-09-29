@@ -43,6 +43,9 @@ class MainActivity : ComponentActivity() {
     private fun checkUpdateInstallRequest(intent: Intent?) {
         if (intent?.getBooleanExtra(EXTRA_INSTALL_UPDATE, false) == true) {
             intent.removeExtra(EXTRA_INSTALL_UPDATE)
+            if (githubUpdateController.cleanObsoleteApk()) {
+                return
+            }
             githubUpdateController.installDownloaded()
         }
     }

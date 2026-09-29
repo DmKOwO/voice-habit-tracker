@@ -147,11 +147,19 @@ class HomeViewModel @JvmOverloads constructor(
                             com.voicehabit.tracker.core.notifications.Notify.show(
                                 context = getApplication(),
                                 channel = com.voicehabit.tracker.core.notifications.Notify.CHANNEL_UPDATES,
-                                id = 9201,
-                                title = "⬇ Обновление готово к установке",
+                                id = com.voicehabit.tracker.core.notifications.Notify.ID_UPDATE,
+                                title = "Обновление готово к установке",
                                 text = "Нажмите для установки новой версии.",
                                 actions = listOf(com.voicehabit.tracker.core.notifications.Notify.updateInstallAction(getApplication())),
                                 customContentIntent = com.voicehabit.tracker.core.notifications.Notify.updateInstallIntent(getApplication())
+                            )
+                        }
+                    }
+                    is com.voicehabit.tracker.core.update.AppUpdateUiState.UpToDate -> {
+                        runCatching {
+                            com.voicehabit.tracker.core.notifications.Notify.cancel(
+                                getApplication(),
+                                com.voicehabit.tracker.core.notifications.Notify.ID_UPDATE
                             )
                         }
                     }

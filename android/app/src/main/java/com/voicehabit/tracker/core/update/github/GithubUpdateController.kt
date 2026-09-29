@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import com.voicehabit.tracker.core.logging.AppLogger
+import com.voicehabit.tracker.core.notifications.Notify
 import com.voicehabit.tracker.core.update.AppUpdateUiState
 import com.voicehabit.tracker.core.update.UPDATE_GITHUB_OWNER
 import com.voicehabit.tracker.core.update.UPDATE_GITHUB_REPO
@@ -41,6 +42,10 @@ class GithubUpdateController(
 
     private var pendingRelease: GithubRelease? = null
     val latestRelease: GithubRelease? get() = pendingRelease
+
+    init {
+        cleanObsoleteApk()
+    }
 
     fun check(auto: Boolean = false) {
         if (auto && !shouldAutoCheck()) {
@@ -79,6 +84,10 @@ class GithubUpdateController(
                     CheckResult.UpToDate -> {
                         settings.lastGithubCheckMillis = System.currentTimeMillis()
                         AppLogger.instance().finishOperation(OPERATION, "уже последняя версия")
+                        cleanObsoleteApk()
+                        downloader.deleteDownloadedApk(appContext)
+                        settings.lastGithubAutoTag = ""
+                        Notify.cancel(appContext, Notify.ID_UPDATE)
                         mutableState.value = AppUpdateUiState.UpToDate
                     }
                     CheckResult.NoReleases -> {
@@ -133,7 +142,50 @@ class GithubUpdateController(
         }
     }
 
+    /**
+     * Удаляет скачанный APK, если он равен текущей версии или старше её (или если повреждён).
+     * Отменяет уведомление 9201 и сбрасывает устаревший статус в UI.
+     * Возвращает true, если устаревший APK был обнаружен и удалён.
+     */
+    fun cleanObsoleteApk(): Boolean {
+        val apk = downloader.downloadedApk(appContext) ?: run {
+            Notify.cancel(appContext, Notify.ID_UPDATE)
+            return false
+        }
+        val curVer = currentSemVer(appContext)
+        val curCode = currentVersionCode(appContext)
+        val apkInfo = downloader.getApkInfo(appContext, apk)
+
+        val isObsolete = if (apkInfo == null) {
+            true
+        } else {
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = curVer,
+                currentCode = curCode,
+                apkVer = apkInfo.first,
+                apkCode = apkInfo.second
+            )
+        }
+
+        if (isObsolete) {
+            AppLogger.instance().i("update", "Удаление устаревшего APK обновления", mapOf("file" to apk.name))
+            downloader.deleteDownloadedApk(appContext)
+            settings.lastGithubAutoTag = ""
+            Notify.cancel(appContext, Notify.ID_UPDATE)
+            if (mutableState.value is AppUpdateUiState.Downloaded) {
+                mutableState.value = AppUpdateUiState.UpToDate
+            }
+            return true
+        }
+        return false
+    }
+
     fun installDownloaded(onError: (String) -> Unit = {}) {
+        if (cleanObsoleteApk()) {
+            AppLogger.instance().i("update", "Попытка установки отменена: APK уже установлен или устарел")
+            onError("Установлена актуальная версия приложения")
+            return
+        }
         val apk = downloader.downloadedApk(appContext)
         if (apk == null) {
             mutableState.value = AppUpdateUiState.Failed("Загруженный файл не найден, скачиваю заново…")
@@ -180,6 +232,16 @@ class GithubUpdateController(
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
             @Suppress("DEPRECATION")
             SemVer.parse(info.versionName)
+        }.getOrNull()
+
+        fun currentVersionCode(context: Context): Long? = runCatching {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode.toLong()
+            }
         }.getOrNull()
     }
 }

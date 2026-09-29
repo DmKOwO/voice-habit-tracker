@@ -151,4 +151,86 @@ class GithubUpdateDownloaderTest {
         assertTrue(result is GithubUpdateDownloader.DownloadResult.Failed)
         assertTrue(!target.exists())
     }
+
+    @Test
+    fun isApkObsoleteIdentifiesSameOrOlderVersionsAndCorruptFiles() {
+        val currentVer = SemVer(1, 3, 2)
+        val currentCode = 115L
+
+        // Точно такая же версия и код — устарел (уже установлен)
+        assertTrue(
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = currentVer,
+                currentCode = currentCode,
+                apkVer = SemVer(1, 3, 2),
+                apkCode = 115L
+            )
+        )
+
+        // Более старая версия
+        assertTrue(
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = currentVer,
+                currentCode = currentCode,
+                apkVer = SemVer(1, 3, 1),
+                apkCode = 114L
+            )
+        )
+
+        // Более старый или равный код сборки при несовпадающей версии
+        assertTrue(
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = currentVer,
+                currentCode = currentCode,
+                apkVer = SemVer(1, 3, 3),
+                apkCode = 115L
+            )
+        )
+
+        // Повреждённый APK (версия и код null)
+        assertTrue(
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = currentVer,
+                currentCode = currentCode,
+                apkVer = null,
+                apkCode = null
+            )
+        )
+
+        // Более новая версия и более высокий код сборки — НЕ устарел (валидное обновление)
+        org.junit.Assert.assertFalse(
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = currentVer,
+                currentCode = currentCode,
+                apkVer = SemVer(1, 3, 3),
+                apkCode = 116L
+            )
+        )
+
+        // Если текущая версия не определена, не считаем валидный APK устаревшим
+        org.junit.Assert.assertFalse(
+            GithubUpdateDownloader.isApkObsolete(
+                currentVer = null,
+                currentCode = null,
+                apkVer = SemVer(1, 3, 3),
+                apkCode = 116L
+            )
+        )
+    }
+
+    @Test
+    fun deleteApkFileDeletesExistingFileAndReturnsFalseForMissing() {
+        val downloader = GithubUpdateDownloader()
+        val tempFile = Files.createTempFile("test-update", ".apk").toFile()
+        assertTrue(tempFile.exists())
+
+        // Удаление существующего файла
+        val deleted = downloader.deleteApkFile(tempFile)
+        assertTrue(deleted)
+        org.junit.Assert.assertFalse(tempFile.exists())
+
+        // Повторное удаление несуществующего файла
+        val deletedAgain = downloader.deleteApkFile(tempFile)
+        org.junit.Assert.assertFalse(deletedAgain)
+    }
 }

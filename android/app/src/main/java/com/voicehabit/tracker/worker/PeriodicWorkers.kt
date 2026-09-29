@@ -143,8 +143,8 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
                                 Notify.show(
                                     context = applicationContext,
                                     channel = Notify.CHANNEL_UPDATES,
-                                    id = 9201,
-                                    title = "⬇ Обновление v${release.version} готово к установке",
+                                    id = Notify.ID_UPDATE,
+                                    title = "Обновление v${release.version} готово к установке",
                                     text = "Нажмите для установки новой версии.",
                                     actions = listOf(Notify.updateInstallAction(applicationContext)),
                                     customContentIntent = Notify.updateInstallIntent(applicationContext)
@@ -152,6 +152,13 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
                             }
                         }
                     }
+                    Result.success()
+                }
+                is CheckResult.UpToDate -> {
+                    val downloader = com.voicehabit.tracker.core.update.github.GithubUpdateDownloader()
+                    downloader.deleteDownloadedApk(applicationContext)
+                    container.settings.lastGithubAutoTag = ""
+                    Notify.cancel(applicationContext, Notify.ID_UPDATE)
                     Result.success()
                 }
                 else -> Result.success()

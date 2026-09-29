@@ -49,13 +49,23 @@ object Notify {
         )
     }
 
+    const val ID_UPDATE = 9201
+
+    fun cancel(context: Context, id: Int) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        try {
+            manager.cancel(id)
+        } catch (_: Exception) {
+        }
+    }
+
     fun updateInstallIntent(context: Context): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(MainActivity.EXTRA_INSTALL_UPDATE, true)
         }
         return PendingIntent.getActivity(
-            context, 9201, intent,
+            context, ID_UPDATE, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }

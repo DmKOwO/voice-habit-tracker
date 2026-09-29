@@ -37,6 +37,22 @@ class GithubUpdateDownloader(
         private const val CHUNK_SIZE = 8 * 1024
         // Защита от «бесконечного» редиректа/потока: APK больше 500 МБ не ждём.
         const val MAX_APK_BYTES = 500L * 1024 * 1024
+
+        /**
+         * Проверяет, устарел ли скачанный APK по сравнению с установленным приложением.
+         * APK считается устаревшим, если его версия/код <= текущих или если данные APK повреждены.
+         */
+        fun isApkObsolete(
+            currentVer: SemVer?,
+            currentCode: Long?,
+            apkVer: SemVer?,
+            apkCode: Long?
+        ): Boolean {
+            if (apkVer == null && apkCode == null) return true
+            val verObsolete = if (currentVer != null && apkVer != null) apkVer <= currentVer else false
+            val codeObsolete = if (currentCode != null && apkCode != null) apkCode <= currentCode else false
+            return verObsolete || codeObsolete
+        }
     }
 
     sealed interface DownloadResult {
@@ -142,4 +158,33 @@ class GithubUpdateDownloader(
         val file = File(File(context.filesDir, DIRECTORY), APK_FILE_NAME)
         return file.takeIf { it.exists() && it.length() > 0 }
     }
+
+    fun deleteDownloadedApk(context: Context): Boolean {
+        val file = File(File(context.filesDir, DIRECTORY), APK_FILE_NAME)
+        return deleteApkFile(file)
+    }
+
+    fun deleteApkFile(file: File): Boolean {
+        return runCatching {
+            if (file.exists()) file.delete() else false
+        }.getOrDefault(false)
+    }
+
+    /**
+     * Извлекает информацию о версии и коде сборки из скачанного APK.
+     * Возвращает null, если файл повреждён, не существует или не является валидным APK.
+     */
+    fun getApkInfo(context: Context, file: File): Pair<SemVer?, Long?>? = runCatching {
+        if (!file.exists() || file.length() == 0L) return null
+        val archiveInfo = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0) ?: return null
+        val versionName = archiveInfo.versionName
+        val semVer = SemVer.parse(versionName)
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            archiveInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            archiveInfo.versionCode.toLong()
+        }
+        Pair(semVer, versionCode)
+    }.getOrNull()
 }
