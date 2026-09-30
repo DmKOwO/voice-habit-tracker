@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +57,7 @@ fun HabitDetailBottomSheet(
     heroKey: String? = null,
     viewModel: HomeViewModel? = null
 ) {
+    val haptics = rememberDuroHaptics()
     val accentColor = try {
         Color(android.graphics.Color.parseColor(habit.colorHex))
     } catch (e: Exception) {
@@ -72,18 +76,22 @@ fun HabitDetailBottomSheet(
     LaunchedEffect(habit.id, displayedMonth) {
         monthEpochs = viewModel?.habitMonthCompletions(habit.id, displayedMonth) ?: emptySet()
     }
-    val createdEpoch = remember(habit.id) {
+    val initialCreatedEpoch = remember(habit.id) {
         Instant.ofEpochMilli(habit.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+    }
+    val effectiveCreatedEpoch = remember(initialCreatedEpoch, monthEpochs) {
+        val earliest = monthEpochs.minOrNull()
+        if (earliest != null && earliest < initialCreatedEpoch) earliest else initialCreatedEpoch
     }
     val monthStart = remember(displayedMonth) { displayedMonth.atDay(1).toEpochDay() }
     val monthEnd = remember(displayedMonth) { displayedMonth.atEndOfMonth().toEpochDay() }
-    val stats = remember(monthEpochs, localScheduleDays, displayedMonth) {
+    val stats = remember(monthEpochs, localScheduleDays, displayedMonth, effectiveCreatedEpoch) {
         com.voicehabit.tracker.core.analysis.HabitStats.windowCompletion(
             logEpochDays = monthEpochs,
             scheduleDays = localScheduleDays,
             windowStartEpochDay = monthStart,
             windowEndEpochDay = monthEnd,
-            createdEpochDay = createdEpoch,
+            createdEpochDay = effectiveCreatedEpoch,
             todayEpochDay = today.toEpochDay()
         )
     }
@@ -137,6 +145,7 @@ fun HabitDetailBottomSheet(
         Column(
             modifier = modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 36.dp)
         ) {
@@ -295,7 +304,7 @@ fun HabitDetailBottomSheet(
                             text = "$completionPercentage%",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DuroLime
+                            color = accentColor
                         )
                         Text(
                             text = "в ${monthLabel.prepositional} ${displayedMonth.year}",
@@ -345,7 +354,12 @@ fun HabitDetailBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Нажмите на любой прошедший день, чтобы отметить или снять выполнение",
+                fontSize = 11.sp,
+                color = DuroTextMuted,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
 
             // Календарная сетка месяца
             Surface(
@@ -375,7 +389,6 @@ fun HabitDetailBottomSheet(
                     val cells: List<LocalDate?> =
                         List(firstOffset) { null } +
                             (1..displayedMonth.lengthOfMonth()).map { displayedMonth.atDay(it) }
-                    val createdDate = LocalDate.ofEpochDay(createdEpoch)
                     cells.chunked(7).forEach { week ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -390,7 +403,7 @@ fun HabitDetailBottomSheet(
                                     val isToday = dayDate.isEqual(today)
                                     val isScheduled = dayDate.dayOfWeek.value in localScheduleDays
                                     val isFuture = dayDate.isAfter(today)
-                                    val notExisted = dayDate.isBefore(createdDate)
+                                    val canToggle = !isFuture && viewModel != null
                                     Box(
                                         modifier = Modifier
                                             .size(36.dp)
@@ -398,7 +411,6 @@ fun HabitDetailBottomSheet(
                                             .background(
                                                 when {
                                                     isDone -> accentColor
-                                                    notExisted -> Color.Transparent
                                                     !isScheduled -> Color(0xFF101017)
                                                     else -> Color(0xFF16161F)
                                                 }
@@ -412,7 +424,16 @@ fun HabitDetailBottomSheet(
                                                     else -> DuroBorder
                                                 },
                                                 shape = RoundedCornerShape(8.dp)
-                                            ),
+                                            )
+                                            .clickable(enabled = canToggle) {
+                                                haptics.select()
+                                                if (isDone) {
+                                                    monthEpochs = monthEpochs - epoch
+                                                } else {
+                                                    monthEpochs = monthEpochs + epoch
+                                                }
+                                                viewModel?.toggleHabitDate(habit.id, dayDate)
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
@@ -421,10 +442,10 @@ fun HabitDetailBottomSheet(
                                             fontWeight = if (isToday || isDone) FontWeight.Bold else FontWeight.Medium,
                                             color = when {
                                                 isDone -> Color.White
-                                                notExisted || isFuture -> DuroTextMuted.copy(alpha = 0.35f)
+                                                isFuture -> DuroTextMuted.copy(alpha = 0.25f)
                                                 !isScheduled -> DuroTextMuted.copy(alpha = 0.35f)
                                                 isToday -> DuroTextPrimary
-                                                else -> DuroTextMuted
+                                                else -> DuroTextSecondary
                                             }
                                         )
                                     }
@@ -520,6 +541,23 @@ fun HabitDetailBottomSheet(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = { viewModel.setHabitForWidget(habit.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Widgets,
+                        contentDescription = null,
+                        tint = AppTheme.colors.textPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Закрепить в виджете на рабочем столе", fontSize = 12.sp, color = AppTheme.colors.textPrimary)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(

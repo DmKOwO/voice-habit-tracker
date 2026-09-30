@@ -1030,7 +1030,7 @@ private fun CompletedTasksHeader(
                 if (earlierCount > 0) append("  (+$earlierCount ранее)")
             },
             style = MaterialTheme.typography.labelMedium.copy(
-                color = DuroLime
+                color = DuroTextSecondary
             )
         )
         AnimatedContent(
@@ -1044,7 +1044,7 @@ private fun CompletedTasksHeader(
             Icon(
                 imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = if (isExpanded) "Свернуть выполненные" else "Показать выполненные",
-                tint = DuroLime,
+                tint = DuroTextMuted,
                 modifier = Modifier.size(18.dp)
             )
         }

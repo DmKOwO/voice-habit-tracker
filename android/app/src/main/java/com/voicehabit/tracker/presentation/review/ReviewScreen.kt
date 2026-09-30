@@ -1,24 +1,33 @@
 package com.voicehabit.tracker.presentation.review
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.voicehabit.tracker.presentation.home.HomeViewModel
+import com.voicehabit.tracker.presentation.home.ReviewVoiceTarget
 import com.voicehabit.tracker.presentation.hub.ScreenHeader
 import com.voicehabit.tracker.presentation.theme.*
+import com.voicehabit.tracker.presentation.voice.VoiceWaveform
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -29,6 +38,18 @@ fun ReviewScreen(viewModel: HomeViewModel) {
     val state by viewModel.state.collectAsState()
     var summary by remember { mutableStateOf("") }
     var tomorrowPlan by remember { mutableStateOf("") }
+
+    val isRecording by viewModel.audioRecorder.isRecording.collectAsState()
+    val recordDuration by viewModel.audioRecorder.recordDurationSeconds.collectAsState()
+    val amplitude by viewModel.audioRecorder.amplitudeNormalized.collectAsState()
+    val isReviewRecording = state.isReviewVoiceRecording && isRecording
+    val haptics = rememberDuroHaptics()
+
+    val animatedAmplitude by animateFloatAsState(
+        targetValue = amplitude.coerceIn(0f, 1f),
+        animationSpec = DuroContentSpring,
+        label = "reviewAudioAmplitude"
+    )
 
     val zone = ZoneId.systemDefault()
     val doneHabits = state.habits.filter { it.isCompletedToday && it.deletedAt == null && !it.archived }
@@ -124,11 +145,217 @@ fun ReviewScreen(viewModel: HomeViewModel) {
             tomorrowTasks.forEach { Text(text = "• ${it.title}", fontSize = 13.sp, color = AppTheme.colors.textPrimary) }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // F3 / Умный диктофон вечернего разбора
+        Surface(
+            color = AppTheme.colors.surface,
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (isReviewRecording) DuroOrange.copy(alpha = 0.6f) else AppTheme.colors.border
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                if (isReviewRecording) {
+                    // Активное состояние записи
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(AppTheme.colors.error)
+                            )
+                            Text(
+                                text = when (state.reviewVoiceTarget) {
+                                    ReviewVoiceTarget.ALL -> "Запись вечернего разбора"
+                                    ReviewVoiceTarget.SUMMARY -> "Надиктовка: Итог дня"
+                                    ReviewVoiceTarget.PLAN -> "Надиктовка: План на завтра"
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppTheme.colors.textPrimary
+                            )
+                        }
+
+                        Text(
+                            text = "%02d:%02d".format(recordDuration / 60, recordDuration % 60),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DuroOrange
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    VoiceWaveform(
+                        amplitude = animatedAmplitude,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(28.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = if (state.reviewVoicePartial.isNotBlank()) {
+                            "«${state.reviewVoicePartial}»"
+                        } else {
+                            "Слушаю вас..."
+                        },
+                        fontSize = 12.sp,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        color = AppTheme.colors.textSecondary,
+                        maxLines = 2
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                haptics.reject()
+                                viewModel.cancelReviewVoiceRecording()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Отмена",
+                                tint = AppTheme.colors.error,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Отмена", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                        }
+
+                        Button(
+                            onClick = {
+                                haptics.confirm()
+                                viewModel.stopReviewVoiceRecording { extractedSummary, extractedPlan ->
+                                    if (!extractedSummary.isNullOrBlank()) {
+                                        summary = if (summary.isBlank()) extractedSummary else "$summary\n$extractedSummary"
+                                    }
+                                    if (!extractedPlan.isNullOrBlank()) {
+                                        tomorrowPlan = if (tomorrowPlan.isBlank()) extractedPlan else "$tomorrowPlan\n$extractedPlan"
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppTheme.colors.accent,
+                                contentColor = AppTheme.colors.onAccent
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Готово",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Готово", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    // Пассивное состояние: баннер умной надиктовки
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                haptics.confirm()
+                                viewModel.startReviewVoiceRecording(ReviewVoiceTarget.ALL)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(AppTheme.colors.accent.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Надиктовать вечерний разбор",
+                                    tint = AppTheme.colors.accent,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Надиктовать вечерний разбор",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = "ИИ разложит мысли на итог дня и планы на завтра",
+                                    fontSize = 11.sp,
+                                    color = AppTheme.colors.textSecondary
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Диктофон",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = DuroOrange
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
         OutlinedTextField(
             value = summary,
             onValueChange = { summary = it },
             label = { Text("Итог дня своими словами", fontSize = 12.sp) },
+            trailingIcon = {
+                val isTargeted = isReviewRecording && state.reviewVoiceTarget == ReviewVoiceTarget.SUMMARY
+                IconButton(onClick = {
+                    if (isTargeted) {
+                        haptics.confirm()
+                        viewModel.stopReviewVoiceRecording { s, _ ->
+                            if (!s.isNullOrBlank()) {
+                                summary = if (summary.isBlank()) s else "$summary\n$s"
+                            }
+                        }
+                    } else {
+                        haptics.confirm()
+                        viewModel.startReviewVoiceRecording(ReviewVoiceTarget.SUMMARY)
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (isTargeted) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = "Надиктовать итог дня",
+                        tint = if (isTargeted) DuroOrange else AppTheme.colors.textMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = AppTheme.colors.accent,
                 unfocusedBorderColor = AppTheme.colors.border,
@@ -147,6 +374,29 @@ fun ReviewScreen(viewModel: HomeViewModel) {
             value = tomorrowPlan,
             onValueChange = { tomorrowPlan = it },
             label = { Text("План на завтра", fontSize = 12.sp) },
+            trailingIcon = {
+                val isTargeted = isReviewRecording && state.reviewVoiceTarget == ReviewVoiceTarget.PLAN
+                IconButton(onClick = {
+                    if (isTargeted) {
+                        haptics.confirm()
+                        viewModel.stopReviewVoiceRecording { _, p ->
+                            if (!p.isNullOrBlank()) {
+                                tomorrowPlan = if (tomorrowPlan.isBlank()) p else "$tomorrowPlan\n$p"
+                            }
+                        }
+                    } else {
+                        haptics.confirm()
+                        viewModel.startReviewVoiceRecording(ReviewVoiceTarget.PLAN)
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (isTargeted) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = "Надиктовать план на завтра",
+                        tint = if (isTargeted) DuroOrange else AppTheme.colors.textMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = AppTheme.colors.accent,
                 unfocusedBorderColor = AppTheme.colors.border,

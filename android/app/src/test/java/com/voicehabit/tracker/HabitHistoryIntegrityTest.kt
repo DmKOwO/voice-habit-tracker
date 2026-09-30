@@ -181,4 +181,28 @@ class HabitHistoryIntegrityTest {
         val result = repo.getAllHabitsList().single()
         assertTrue("Отметка должна попасть в последний день окна", result.historyDaysCompleted.last())
     }
+
+    @Test
+    fun `toggleHabitDate allows toggling past days and recomputes streak`() = runTest {
+        val dao = FakeHabitDao()
+        val repo = repository(dao)
+
+        repo.insertOrUpdateHabit(habit.copy(createdAt = dayAt(5L)))
+
+        val threeDaysAgo = today.minusDays(3)
+        val added = repo.toggleHabitDate("habit_bed", threeDaysAgo)
+        assertTrue(added)
+        assertEquals(1, dao.countLogsForHabit("habit_bed"))
+
+        // Toggling same past day again unmarks it
+        val removed = repo.toggleHabitDate("habit_bed", threeDaysAgo)
+        assertFalse(removed)
+        assertEquals(0, dao.countLogsForHabit("habit_bed"))
+
+        // Toggling past day before createdAt expands createdAt
+        val tenDaysAgo = today.minusDays(10)
+        repo.toggleHabitDate("habit_bed", tenDaysAgo)
+        val updatedHabit = dao.getHabitById("habit_bed")
+        assertTrue(updatedHabit != null && updatedHabit.createdAt <= tenDaysAgo.atStartOfDay(zone).toInstant().toEpochMilli())
+    }
 }

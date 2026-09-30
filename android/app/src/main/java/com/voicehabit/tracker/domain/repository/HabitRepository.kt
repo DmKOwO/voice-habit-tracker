@@ -2,6 +2,7 @@ package com.voicehabit.tracker.domain.repository
 
 import com.voicehabit.tracker.domain.model.Habit
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface HabitRepository {
     fun getAllHabitsFlow(): Flow<List<Habit>>
@@ -10,6 +11,7 @@ interface HabitRepository {
     suspend fun insertOrUpdateHabit(habit: Habit)
     suspend fun logHabitCompletion(habitId: String, value: Double, comment: String?)
     suspend fun toggleHabitCompletion(habitId: String): Boolean
+    suspend fun toggleHabitDate(habitId: String, date: LocalDate): Boolean
     suspend fun deleteHabit(id: String)
     suspend fun setArchived(id: String, archived: Boolean)
     suspend fun moveToTrash(id: String)

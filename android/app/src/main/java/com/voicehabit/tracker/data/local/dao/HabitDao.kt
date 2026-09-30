@@ -50,6 +50,15 @@ interface HabitDao {
     @Query("SELECT * FROM habit_logs WHERE completedAt >= :startTimestamp AND completedAt <= :endTimestamp")
     suspend fun getLogsBetween(startTimestamp: Long, endTimestamp: Long): List<HabitLogEntity>
 
+    @Query("SELECT * FROM habit_logs WHERE habitId = :habitId AND completedAt >= :startTimestamp AND completedAt <= :endTimestamp")
+    suspend fun getLogsForHabitBetween(habitId: String, startTimestamp: Long, endTimestamp: Long): List<HabitLogEntity>
+
+    @Query("DELETE FROM habit_logs WHERE habitId = :habitId AND completedAt >= :startTimestamp AND completedAt <= :endTimestamp")
+    suspend fun deleteLogsForHabitBetween(habitId: String, startTimestamp: Long, endTimestamp: Long)
+
+    @Query("UPDATE habits SET createdAt = :createdAt WHERE id = :id AND createdAt > :createdAt")
+    suspend fun ensureCreatedAtNotAfter(id: String, createdAt: Long)
+
     @Query("SELECT COUNT(*) FROM habit_logs WHERE habitId = :habitId")
     suspend fun countLogsForHabit(habitId: String): Int
 

@@ -48,6 +48,13 @@ enum class TaskSort(val title: String) {
     CREATED("Сначала новые")
 }
 
+/** Целевое поле для умной надиктовки вечернего разбора. */
+enum class ReviewVoiceTarget {
+    ALL,
+    SUMMARY,
+    PLAN
+}
+
 /** Черновик фокуса: подстановка из карточки задачи (G10). */
 data class FocusDraft(
     val minutes: Int,
@@ -168,6 +175,9 @@ data class HomeState(
     val focusDraft: FocusDraft? = null,
     val reviews: List<Pair<Long, String>> = emptyList(),
     val daySummary: String? = null,
+    val isReviewVoiceRecording: Boolean = false,
+    val reviewVoiceTarget: ReviewVoiceTarget = ReviewVoiceTarget.ALL,
+    val reviewVoicePartial: String = "",
     // Конспекты свободного потока (H1)
     val digests: List<DigestRecord> = emptyList(),
     /** P1. Активная программа тренировок с сегодняшним прогрессом. */

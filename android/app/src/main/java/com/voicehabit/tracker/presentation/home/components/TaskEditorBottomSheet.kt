@@ -129,7 +129,7 @@ fun TaskEditorBottomSheet(
                         text = if (!isExistingTask) "Черновик (Голос)" else if (task.isCompleted) "Выполнена" else "В работе",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (!isExistingTask) AppTheme.colors.textPrimary else if (task.isCompleted) DuroLime else DuroTextPrimary
+                        color = if (!isExistingTask) AppTheme.colors.textPrimary else if (task.isCompleted) DuroTextSecondary else DuroTextPrimary
                     )
                 }
                 Row {
@@ -481,7 +481,7 @@ fun TaskEditorBottomSheet(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (task.isCompleted) AppTheme.colors.accent else DuroLime
+                            contentColor = AppTheme.colors.accent
                         )
                     ) {
                         Text(if (task.isCompleted) "Вернуть в работу" else "Отметить выполненной")

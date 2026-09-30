@@ -102,6 +102,18 @@ class DuroHabitCardWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.tv_card_category, habit.category.uppercase())
                 views.setTextViewText(R.id.tv_card_title, habit.title)
 
+                val configIntent = Intent(context, DuroWidgetConfigureActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                val configPendingIntent = PendingIntent.getActivity(
+                    context,
+                    4000 + appWidgetId,
+                    configIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.tv_card_category, configPendingIntent)
+
                 val accentColorInt = try {
                     android.graphics.Color.parseColor(habit.colorHex)
                 } catch (e: Exception) {

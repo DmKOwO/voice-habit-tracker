@@ -75,6 +75,20 @@ class FakeHabitDao : HabitDao {
     override suspend fun getLogsBetween(startTimestamp: Long, endTimestamp: Long): List<HabitLogEntity> =
         logs.filter { it.completedAt in startTimestamp..endTimestamp }
 
+    override suspend fun getLogsForHabitBetween(habitId: String, startTimestamp: Long, endTimestamp: Long): List<HabitLogEntity> =
+        logs.filter { it.habitId == habitId && it.completedAt in startTimestamp..endTimestamp }
+
+    override suspend fun deleteLogsForHabitBetween(habitId: String, startTimestamp: Long, endTimestamp: Long) {
+        logs.removeAll { it.habitId == habitId && it.completedAt in startTimestamp..endTimestamp }
+    }
+
+    override suspend fun ensureCreatedAtNotAfter(id: String, createdAt: Long) {
+        val index = habits.indexOfFirst { it.id == id }
+        if (index >= 0 && habits[index].createdAt > createdAt) {
+            habits[index] = habits[index].copy(createdAt = createdAt)
+        }
+    }
+
     override suspend fun countLogsForHabit(habitId: String): Int = logs.count { it.habitId == habitId }
 
     override suspend fun deleteHabit(id: String) {

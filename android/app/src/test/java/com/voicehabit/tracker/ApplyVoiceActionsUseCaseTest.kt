@@ -38,6 +38,7 @@ class ApplyVoiceActionsUseCaseTest {
             logs.add(Triple(habitId, value, comment))
         }
         override suspend fun toggleHabitCompletion(habitId: String): Boolean = true
+        override suspend fun toggleHabitDate(habitId: String, date: java.time.LocalDate): Boolean = true
         override suspend fun deleteHabit(id: String) { habits.removeAll { it.id == id } }
         override suspend fun setArchived(id: String, archived: Boolean) {
             val idx = habits.indexOfFirst { it.id == id }

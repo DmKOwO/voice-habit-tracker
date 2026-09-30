@@ -145,7 +145,7 @@ private fun RecordingStatusPanel(
 }
 
 @Composable
-private fun VoiceWaveform(
+fun VoiceWaveform(
     amplitude: Float,
     modifier: Modifier = Modifier
 ) {

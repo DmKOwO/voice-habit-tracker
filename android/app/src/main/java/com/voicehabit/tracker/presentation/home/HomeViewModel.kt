@@ -1161,11 +1161,30 @@ class HomeViewModel @JvmOverloads constructor(
     fun toggleHabit(habit: Habit) {
         viewModelScope.launch {
             habitRepository.toggleHabitCompletion(habit.id)
-            DuroHabitWidgetProvider.updateAllWidgets(getApplication())
-            com.voicehabit.tracker.widget.DuroHabitCardWidgetProvider.updateAllCardWidgets(getApplication())
+            refreshWidgets()
             evaluateAchievements()
             checkAllDoneCelebration()
         }
+    }
+
+    fun toggleHabitDate(habitId: String, date: LocalDate) {
+        viewModelScope.launch {
+            habitRepository.toggleHabitDate(habitId, date)
+            refreshWidgets()
+            evaluateAchievements()
+            if (date == LocalDate.now()) {
+                checkAllDoneCelebration()
+            }
+        }
+    }
+
+    fun setHabitForWidget(habitId: String) {
+        com.voicehabit.tracker.widget.DuroWidgetConfigureActivity.saveGlobalWidgetHabit(
+            getApplication(),
+            habitId
+        )
+        refreshWidgets()
+        showSnackbar("Привычка закреплена в виджете")
     }
 
     /** G31: всё закрыто — показываем пульс-празднование один раз. */
@@ -2071,6 +2090,112 @@ class HomeViewModel @JvmOverloads constructor(
     }
 
     // ---------- Вечерний разбор и сводка дня (F3/G5) ----------
+
+    fun startReviewVoiceRecording(target: ReviewVoiceTarget = ReviewVoiceTarget.ALL) {
+        liveTranscript = null
+        _state.update {
+            it.copy(
+                isReviewVoiceRecording = true,
+                reviewVoiceTarget = target,
+                reviewVoicePartial = ""
+            )
+        }
+        val audioFile = File(getApplication<Application>().cacheDir, "review_voice_${System.currentTimeMillis()}.m4a")
+        audioRecorder.startRecording(audioFile)
+        if (speechRecognizer.isAvailable()) {
+            speechRecognizer.startListening(
+                onPartialText = { partial ->
+                    liveTranscript = partial
+                    _state.update { it.copy(reviewVoicePartial = partial) }
+                },
+                onFinalText = { text ->
+                    liveTranscript = text
+                    _state.update { it.copy(reviewVoicePartial = text) }
+                },
+                onError = { _ -> }
+            )
+        }
+    }
+
+    fun stopReviewVoiceRecording(onResult: (summaryText: String?, planText: String?) -> Unit) {
+        speechRecognizer.stopListening()
+        val speechSeconds = audioRecorder.recordDurationSeconds.value
+        val file = audioRecorder.stopRecording()
+        val target = _state.value.reviewVoiceTarget
+        var transcript = liveTranscript ?: _state.value.reviewVoicePartial
+
+        _state.update {
+            it.copy(
+                isReviewVoiceRecording = false,
+                reviewVoicePartial = ""
+            )
+        }
+
+        viewModelScope.launch {
+            if (transcript.isBlank() && file != null && file.exists()) {
+                if (settings.offlineSttEnabled && container.vosk.isReady()) {
+                    val voskText = withContext(dispatchers.io) { container.vosk.transcribe(file) }
+                    if (!voskText.isNullOrBlank()) {
+                        transcript = voskText
+                    }
+                } else if (settings.useDirectCloud && settings.hasDirectKeys) {
+                    val groqRes = directAiService.transcribeAudioGroq(file, settings.effectiveGroqApiKey)
+                    groqRes.getOrNull()?.let { (text, _) ->
+                        transcript = text
+                    }
+                }
+            }
+
+            val clean = transcript.trim()
+            if (clean.isBlank()) {
+                showSnackbar("Не удалось разобрать речь, попробуйте ещё раз")
+                return@launch
+            }
+
+            when (target) {
+                ReviewVoiceTarget.SUMMARY -> {
+                    onResult(clean.replaceFirstChar { it.uppercase() }, null)
+                }
+                ReviewVoiceTarget.PLAN -> {
+                    onResult(null, clean.replaceFirstChar { it.uppercase() })
+                }
+                ReviewVoiceTarget.ALL -> {
+                    val (extractedSummary, extractedPlan) = parseReviewSpeech(clean)
+                    onResult(extractedSummary, extractedPlan)
+                }
+            }
+        }
+    }
+
+    fun cancelReviewVoiceRecording() {
+        speechRecognizer.stopListening()
+        liveTranscript = null
+        audioRecorder.cancelRecording()
+        _state.update {
+            it.copy(
+                isReviewVoiceRecording = false,
+                reviewVoicePartial = ""
+            )
+        }
+    }
+
+    private fun parseReviewSpeech(text: String): Pair<String, String> {
+        val splitRegex = Regex(
+            "(?i)(?:\\bна\\s+завтра\\b|\\bплан\\s+на\\s+завтра\\b|\\bпланы\\s+на\\s+завтра\\b|\\bзавтра\\b|\\bа\\s+завтра\\b|\\bс\\s+утра\\s+завтра\\b)[\\s:,.-]*",
+            RegexOption.IGNORE_CASE
+        )
+        val match = splitRegex.find(text)
+        return if (match != null && match.range.first > 0) {
+            val summaryPart = text.substring(0, match.range.first).trim().trimEnd(',', '.', ';', ':', '-')
+            val planPart = text.substring(match.range.last + 1).trim().trimStart(':', '-', ' ')
+            Pair(
+                summaryPart.replaceFirstChar { it.uppercase() },
+                planPart.replaceFirstChar { it.uppercase() }
+            )
+        } else {
+            Pair(text.replaceFirstChar { it.uppercase() }, "")
+        }
+    }
 
     fun saveReview(summary: String, tomorrowPlan: String) {
         viewModelScope.launch(dispatchers.io) {

@@ -85,8 +85,8 @@ fun SwipeableTaskCard(
                         .background(
                             Brush.horizontalGradient(
                                 listOf(
-                                    DuroLime.copy(alpha = 0.34f),
-                                    DuroLime.copy(alpha = 0.08f),
+                                    AppTheme.colors.accent.copy(alpha = 0.25f),
+                                    AppTheme.colors.accent.copy(alpha = 0.05f),
                                     Color.Transparent
                                 )
                             )
@@ -97,7 +97,7 @@ fun SwipeableTaskCard(
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Отметить выполненной",
-                        tint = DuroLime,
+                        tint = AppTheme.colors.accent,
                         modifier = Modifier
                             .graphicsLayer {
                                 scaleX = actionScale
@@ -130,12 +130,12 @@ fun TaskCard(
 ) {
     // Непрозрачный фон предотвращает просвечивание фоновых элементов
     val containerColor by animateColorAsState(
-        targetValue = if (task.isCompleted) Color(0xFF182218) else DuroSurface,
+        targetValue = if (task.isCompleted) DuroSurface.copy(alpha = 0.85f) else DuroSurface,
         animationSpec = DuroColorSpring,
         label = "taskContainerColor"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (task.isCompleted) DuroLime.copy(alpha = 0.55f) else DuroBorder.copy(alpha = 0.72f),
+        targetValue = if (task.isCompleted) DuroBorder.copy(alpha = 0.45f) else DuroBorder.copy(alpha = 0.72f),
         animationSpec = DuroColorSpring,
         label = "taskBorderColor"
     )
@@ -174,7 +174,8 @@ fun TaskCard(
                             scaleY = checkScale
                         },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = DuroLime,
+                        checkedColor = AppTheme.colors.accent,
+                        checkmarkColor = AppTheme.colors.surface,
                         uncheckedColor = DuroTextMuted
                     )
                 )

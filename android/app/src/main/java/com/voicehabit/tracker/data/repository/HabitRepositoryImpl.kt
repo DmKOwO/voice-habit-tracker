@@ -100,6 +100,38 @@ class HabitRepositoryImpl(
             }
         }
 
+    override suspend fun toggleHabitDate(habitId: String, date: LocalDate): Boolean =
+        transactionRunner {
+            val startOfDay = date.atStartOfDay(zone).toInstant().toEpochMilli()
+            val endOfDay = date.atTime(23, 59, 59, 999_000_000).atZone(zone).toInstant().toEpochMilli()
+            val habit = habitDao.getHabitById(habitId) ?: return@transactionRunner false
+
+            val existingLogs = habitDao.getLogsForHabitBetween(habitId, startOfDay, endOfDay)
+            val isCompleted = existingLogs.sumOf { it.valueLogged } >= habit.targetValue
+
+            if (isCompleted) {
+                habitDao.deleteLogsForHabitBetween(habitId, startOfDay, endOfDay)
+                recomputeStreak(habitId)
+                false
+            } else {
+                if (habit.createdAt > startOfDay) {
+                    habitDao.ensureCreatedAtNotAfter(habitId, startOfDay)
+                }
+                val noonTime = date.atTime(12, 0, 0).atZone(zone).toInstant().toEpochMilli()
+                habitDao.insertHabitLog(
+                    HabitLogEntity(
+                        id = newLogId(),
+                        habitId = habitId,
+                        valueLogged = habit.targetValue,
+                        comment = "Отмечено в календаре",
+                        completedAt = noonTime
+                    )
+                )
+                recomputeStreak(habitId)
+                true
+            }
+        }
+
     override suspend fun deleteHabit(id: String) {
         habitDao.deleteHabit(id)
     }

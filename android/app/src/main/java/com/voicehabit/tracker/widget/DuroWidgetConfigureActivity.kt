@@ -1,6 +1,7 @@
 package com.voicehabit.tracker.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -180,15 +181,39 @@ class DuroWidgetConfigureActivity : ComponentActivity() {
     companion object {
         private const val PREFS_NAME = "duro_widget_prefs"
         private const val PREF_PREFIX_KEY = "widget_habit_"
+        const val PREF_LAST_CONFIGURED_HABIT = "last_configured_habit_id"
 
         fun saveHabitForWidget(context: Context, appWidgetId: Int, habitId: String) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putString(PREF_PREFIX_KEY + appWidgetId, habitId).apply()
+            prefs.edit()
+                .putString(PREF_PREFIX_KEY + appWidgetId, habitId)
+                .putString(PREF_LAST_CONFIGURED_HABIT, habitId)
+                .apply()
+        }
+
+        fun saveGlobalWidgetHabit(context: Context, habitId: String) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val componentName = ComponentName(context, DuroHabitCardWidgetProvider::class.java)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            val editor = prefs.edit().putString(PREF_LAST_CONFIGURED_HABIT, habitId)
+            for (id in appWidgetIds) {
+                editor.putString(PREF_PREFIX_KEY + id, habitId)
+            }
+            editor.apply()
+            DuroHabitCardWidgetProvider.updateAllCardWidgets(context)
         }
 
         fun loadHabitIdForWidget(context: Context, appWidgetId: Int): String? {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            return prefs.getString(PREF_PREFIX_KEY + appWidgetId, null)
+            val specific = prefs.getString(PREF_PREFIX_KEY + appWidgetId, null)
+            if (specific != null) return specific
+            val fallback = prefs.getString(PREF_LAST_CONFIGURED_HABIT, null)
+            if (fallback != null && appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                // Self-heal binding for this newly assigned launcher ID
+                prefs.edit().putString(PREF_PREFIX_KEY + appWidgetId, fallback).apply()
+            }
+            return fallback
         }
 
         fun deleteWidgetPref(context: Context, appWidgetId: Int) {
