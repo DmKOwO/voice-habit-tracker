@@ -57,6 +57,13 @@ data class FocusDraft(
 )
 
 /** Идущий фокус-таймер и Flow Engine спринт (G4/F8). */
+data class FocusCalibration(
+    val label: String,
+    val taskId: String? = null,
+    val habitId: String? = null
+)
+
+/** Идущий фокус-таймер и Flow Engine спринт (G4/F8). */
 data class FocusRun(
     val totalSec: Int,
     val remainingSec: Int,
@@ -69,7 +76,9 @@ data class FocusRun(
     val currentStep: String? = null,
     val completedSteps: List<String> = emptyList(),
     val showDebriefModal: Boolean = false,
-    val isStepLoading: Boolean = false
+    val isStepLoading: Boolean = false,
+    /** Срез контекста (уровни, проценты, заметки) — не захламляет заголовок. */
+    val details: String = ""
 ) {
     val progress: Float get() = if (totalSec <= 0) 0f else 1f - remainingSec.toFloat() / totalSec
 }
@@ -112,6 +121,8 @@ data class HomeState(
     val isGlobalSearchOpen: Boolean = false,
     val globalSearchQuery: String = "",
     val isFeedbackOpen: Boolean = false,
+    /** TTS включён: иначе кнопку прослушки не показываем вообще. */
+    val ttsEnabled: Boolean = true,
     val inferredInsights: String = "",
     val voiceLogs: List<com.voicehabit.tracker.data.local.entity.VoiceLogEntity> = emptyList(),
     val infoMessage: String? = null,
@@ -152,6 +163,7 @@ data class HomeState(
     val focusSessions: List<FocusSession> = emptyList(),
     val focusRun: FocusRun? = null,
     val focusDebriefRun: FocusRun? = null,
+    val focusCalibration: FocusCalibration? = null,
     val focusRequest: FocusStartAction? = null,
     val focusDraft: FocusDraft? = null,
     val reviews: List<Pair<Long, String>> = emptyList(),

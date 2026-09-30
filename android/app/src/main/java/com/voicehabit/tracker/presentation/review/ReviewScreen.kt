@@ -2,6 +2,7 @@ package com.voicehabit.tracker.presentation.review
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,20 +85,22 @@ fun ReviewScreen(viewModel: HomeViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(text = text, fontSize = 13.sp, color = AppTheme.colors.textPrimary, lineHeight = 18.sp)
                     Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { viewModel.speak(text) },
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.border),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = null,
-                            tint = AppTheme.colors.textPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Прослушать", color = AppTheme.colors.textPrimary, fontSize = 13.sp)
+                    // Прослушка — второстепенная и только при включённом TTS:
+                    // компактная строка вместо навязчивой кнопки на всю ширину.
+                    if (state.ttsEnabled) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.clickable { viewModel.speak(text) }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Прослушать сводку",
+                                tint = AppTheme.colors.textMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text("Прослушать", color = AppTheme.colors.textMuted, fontSize = 12.sp)
+                        }
                     }
                 }
             }

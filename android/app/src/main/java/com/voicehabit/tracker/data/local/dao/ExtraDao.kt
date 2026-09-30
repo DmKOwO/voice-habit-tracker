@@ -59,6 +59,9 @@ interface FocusDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(session: FocusSessionEntity)
+
+    @Query("DELETE FROM focus_sessions WHERE id = :id")
+    suspend fun deleteById(id: String)
 }
 
 @Dao

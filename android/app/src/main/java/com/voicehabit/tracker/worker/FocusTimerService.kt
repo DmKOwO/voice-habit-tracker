@@ -7,14 +7,10 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.media.RingtoneManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import com.voicehabit.tracker.MainActivity
 import com.voicehabit.tracker.R
@@ -43,6 +39,7 @@ class FocusTimerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_CANCEL -> {
+                FocusAlarmReceiver.cancel(this)
                 prefs().edit().remove(KEY_END_AT).apply()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -51,6 +48,8 @@ class FocusTimerService : Service() {
         }
         val totalSec = intent?.getIntExtra(EXTRA_TOTAL_SEC, 0) ?: 0
         val label = intent?.getStringExtra(EXTRA_LABEL) ?: "Фокус-сессия"
+        // Минуты едут отдельно: при рестарте totalSec — остаток, а длительность сессии исходная.
+        val totalMin = intent?.getIntExtra(EXTRA_TOTAL_MIN, 0)?.takeIf { it > 0 } ?: (totalSec / 60)
         if (totalSec <= 0) {
             stopSelf()
             return START_NOT_STICKY
@@ -59,9 +58,11 @@ class FocusTimerService : Service() {
         prefs().edit()
             .putLong(KEY_END_AT, endAt)
             .putString(KEY_LABEL, label)
-            .putInt(KEY_TOTAL_MIN, totalSec / 60)
+            .putInt(KEY_TOTAL_MIN, totalMin)
             .remove(KEY_FINISHED_LABEL)
             .apply()
+        // Второй рубеж: системный будильник добьёт даже в Doze.
+        FocusAlarmReceiver.schedule(this, endAt, label)
         startForeground(NOTIFICATION_ID, buildOngoing(label, totalSec))
         scheduleTick(label)
         return START_STICKY
@@ -88,60 +89,10 @@ class FocusTimerService : Service() {
 
     private fun onFinish(label: String) {
         tick?.let { handler.removeCallbacks(it) }
-        val totalMin = prefs().getInt(KEY_TOTAL_MIN, 0)
-        prefs().edit()
-            .remove(KEY_END_AT)
-            .putString(KEY_FINISHED_LABEL, label)
-            .putInt(KEY_FINISHED_MIN, totalMin)
-            .putLong(KEY_FINISHED_AT, System.currentTimeMillis())
-            .apply()
-        vibrateFinish()
-        playFinishSound()
-        val openIntent = Intent(this, MainActivity::class.java)
-            .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
-        val pending = PendingIntent.getActivity(
-            this, 702, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val done = NotificationCompat.Builder(this, CHANNEL_FINISH)
-            .setContentTitle("Фокус завершён")
-            .setContentText("$label — можно подвести итог")
-            .setSmallIcon(R.drawable.ic_mic_minimal)
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
-            .build()
+        FocusAlarmReceiver.cancel(this)
+        FocusFinishSignal.fire(this, label)
         stopForeground(STOP_FOREGROUND_REMOVE)
-        getSystemService(NotificationManager::class.java)?.notify(FINISH_NOTIFICATION_ID, done)
         stopSelf()
-    }
-
-    private fun vibrateFinish() {
-        runCatching {
-            val pattern = longArrayOf(0, 400, 200, 400, 200, 800)
-            // minSdk 26: VibrationEffect доступен всегда, ветки под древние API не нужны.
-            val effect = VibrationEffect.createWaveform(pattern, -1)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                getSystemService(VibratorManager::class.java)?.defaultVibrator?.vibrate(effect)
-            } else {
-                @Suppress("DEPRECATION")
-                (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)?.vibrate(effect)
-            }
-        }
-    }
-
-    private fun playFinishSound() {
-        runCatching {
-            // Будильник, иначе уведомление, иначе звонок: хоть что-то да зазвучит.
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: return
-            val ringtone = RingtoneManager.getRingtone(applicationContext, uri) ?: return
-            ringtone.play()
-            // Второй гудок для надёжности: один легко пропустить.
-            handler.postDelayed({ runCatching { ringtone.play() } }, 2500L)
-        }
     }
 
     private fun buildOngoing(label: String, remainingSec: Int): Notification {
@@ -182,6 +133,7 @@ class FocusTimerService : Service() {
         const val ACTION_CANCEL = "com.voicehabit.tracker.action.FOCUS_CANCEL"
         const val EXTRA_TOTAL_SEC = "extra_total_sec"
         const val EXTRA_LABEL = "extra_label"
+        const val EXTRA_TOTAL_MIN = "extra_total_min"
 
         const val PREFS = "focus_timer"
         const val KEY_END_AT = "end_at"

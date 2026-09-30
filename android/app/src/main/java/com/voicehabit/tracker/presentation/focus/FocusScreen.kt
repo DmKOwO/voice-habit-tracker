@@ -1,5 +1,6 @@
 package com.voicehabit.tracker.presentation.focus
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,7 +8,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -85,6 +88,12 @@ fun FocusScreen(viewModel: HomeViewModel) {
             RunningFocusSession(
                 run = run,
                 viewModel = viewModel
+            )
+        } else if (state.focusCalibration != null) {
+            FocusCalibrationCard(
+                calibration = state.focusCalibration!!,
+                onConfirm = { level, contextText -> viewModel.confirmCalibration(level, contextText) },
+                onDismiss = { viewModel.dismissCalibration() }
             )
         } else {
             // HERO КАРТОЧКА: АДАПТИВНЫЙ СПРИНТ (FLOW ENGINE)
@@ -179,7 +188,8 @@ fun FocusScreen(viewModel: HomeViewModel) {
                             val targetGoal = label.trim().ifBlank {
                                 state.userPersonaActiveFocus.trim().ifBlank { "Фокус-сессия" }
                             }
-                            viewModel.startAdaptiveFocus(
+                            // Незнакомую тему сначала калибруем, а не гадаем уровень.
+                            viewModel.requestAdaptiveStart(
                                 targetGoal,
                                 taskId,
                                 habitId
@@ -241,6 +251,47 @@ fun FocusScreen(viewModel: HomeViewModel) {
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            // Своё время: компактно, без тяжёлых диалогов — степпер ±5 и прямой ввод.
+            var customText by remember(minutes) { mutableStateOf("") }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Своё время:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.colors.textSecondary
+                )
+                listOf(-5 to "−5", 5 to "+5").forEach { (delta, label) ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AppTheme.colors.surface)
+                            .border(1.dp, AppTheme.colors.border, RoundedCornerShape(10.dp))
+                            .clickable { minutes = (minutes + delta).coerceIn(5, 180) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                    }
+                }
+                OutlinedTextField(
+                    value = customText,
+                    onValueChange = { v ->
+                        customText = v.filter { it.isDigit() }.take(3)
+                        customText.toIntOrNull()?.let { if (it in 5..180) minutes = it }
+                    },
+                    placeholder = { Text("$minutes", fontSize = 13.sp, color = AppTheme.colors.textMuted) },
+                    suffix = { Text("мин", fontSize = 11.sp, color = AppTheme.colors.textMuted) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.width(110.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -321,6 +372,18 @@ fun FocusScreen(viewModel: HomeViewModel) {
                             )
                         }
                         Text(text = "${session.durationMin} мин", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                        // Таргет 48dp: по 32dp попасть почти невозможно.
+                        IconButton(
+                            onClick = { viewModel.deleteFocusSession(session.id) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Убрать из истории",
+                                tint = AppTheme.colors.textMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -380,6 +443,16 @@ private fun RunningFocusSession(
             fontWeight = FontWeight.Bold,
             color = AppTheme.colors.textPrimary
         )
+
+        if (run.details.isNotBlank()) {
+            Text(
+                text = run.details,
+                fontSize = 12.sp,
+                color = AppTheme.colors.textSecondary,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
 
         // Цифровой таймер
         Text(
@@ -546,11 +619,103 @@ private fun RunningFocusSession(
             }
 
             OutlinedButton(
-                onClick = { viewModel.cancelFocus() },
+                onClick = { viewModel.completeFocus() },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1f).height(44.dp)
             ) {
                 Text("Завершить", fontSize = 13.sp, color = AppTheme.colors.error)
+            }
+        }
+    }
+}
+
+/**
+ * Калибровка незнакомой темы: дневник о ней молчит, поэтому спрашиваем
+ * уровень и текущий срез парой тапов вместо гадания ИИ.
+ */
+@Composable
+private fun FocusCalibrationCard(
+    calibration: com.voicehabit.tracker.presentation.home.FocusCalibration,
+    onConfirm: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var level by remember { mutableStateOf("Есть база") }
+    var contextText by remember { mutableStateOf("") }
+    Surface(
+        color = AppTheme.colors.surface,
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.accentSecondary.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Уточним контекст",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppTheme.colors.textPrimary
+            )
+            Text(
+                text = "В дневнике пока нет записей про «${calibration.label}». Подскажи уровень — и спринт настроится точно, а не наугад.",
+                fontSize = 12.sp,
+                color = AppTheme.colors.textSecondary,
+                lineHeight = 17.sp
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("С нуля", "Есть база", "Уверенно").forEach { option ->
+                    val selected = level == option
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) AppTheme.colors.accentSecondary.copy(alpha = 0.2f) else AppTheme.colors.surfaceElevated)
+                            .border(
+                                1.dp,
+                                if (selected) AppTheme.colors.accentSecondary else AppTheme.colors.border,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable { level = option }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = option,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary
+                        )
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = contextText,
+                onValueChange = { contextText = it.take(140) },
+                placeholder = { Text("Что проходишь прямо сейчас? (необязательно)", fontSize = 12.sp, color = AppTheme.colors.textMuted) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Назад", color = AppTheme.colors.textSecondary, fontSize = 13.sp)
+                }
+                Button(
+                    onClick = { onConfirm(level, contextText) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppTheme.colors.accent,
+                        contentColor = AppTheme.colors.onAccent
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Начать спринт", fontSize = 13.sp)
+                }
             }
         }
     }

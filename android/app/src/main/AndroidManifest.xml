@@ -22,6 +22,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- Таймер фокуса: тип specialUse требует отдельного разрешения с Android 14. -->
+    <!-- Точный будильник окончания фокуса: setAlarmClock требует это разрешение.
+         USE_EXACT_ALARM (а не SCHEDULE_EXACT_ALARM) — install-time, без похода
+         пользователя в настройки. Без него setAlarmClock молча отклоняется. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- F11 Health Connect: шаги и сон (runtime-подтверждение в самом Health Connect). -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
@@ -176,6 +180,16 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Таймер фокус-сессии с вибро и звуком по окончании" />
         </service>
+
+        <!-- Системный будильник окончания фокуса: добивает даже в Doze,
+             когда Handler-тикам сервиса не дают проснуться. -->
+        <receiver
+            android:name=".worker.FocusAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.voicehabit.tracker.action.FOCUS_ALARM" />
+            </intent-filter>
+        </receiver>
 
         <!-- FileProvider для передачи скачанного APK системному установщику.
              Каталог filesDir/updates недоступен другим приложениям напрямую,

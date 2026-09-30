@@ -63,6 +63,9 @@ class ExtrasRepository(private val db: AppDatabase) {
         )
     }
 
+    /** Удаление тестовых/случайных запусков из истории. */
+    suspend fun deleteFocusSession(id: String) = db.focusDao().deleteById(id)
+
     fun newFocusId(): String = "focus_" + UUID.randomUUID().toString()
 
     // --- Метки дней / freeze (F6) ---

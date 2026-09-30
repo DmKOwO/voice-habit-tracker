@@ -92,6 +92,7 @@ class HomeViewModel @JvmOverloads constructor(
         observeData()
         seedInitialDataIfNeeded()
         restorePersistedUi()
+        _state.update { it.copy(ttsEnabled = settings.ttsEnabled) }
         runCatching { container.usageAnalytics.trackAppOpen() }
         _state.update {
             it.copy(
@@ -2153,12 +2154,17 @@ class HomeViewModel @JvmOverloads constructor(
     fun startFocus(minutes: Int, label: String, taskId: String? = null, habitId: String? = null) {
         focusTicker?.cancel()
         val totalSec = (minutes.coerceIn(1, 180)) * 60
+        // Анти-«копипаст»: сырой текст режется на короткий заголовок + детали.
+        val split = com.voicehabit.tracker.core.analysis.FocusTitleCleaner.split(
+            label.trim().ifBlank { settings.userPersonaActiveFocus.trim().ifBlank { "Фокус-сессия" } }
+        )
         _state.update {
             it.copy(
                 focusRun = FocusRun(
                     totalSec = totalSec,
                     remainingSec = totalSec,
-                    label = label.trim().ifBlank { settings.userPersonaActiveFocus.trim().ifBlank { "Фокус-сессия" } },
+                    label = split.title,
+                    details = split.details,
                     taskId = taskId,
                     habitId = habitId
                 ),
@@ -2284,12 +2290,14 @@ class HomeViewModel @JvmOverloads constructor(
 
         focusTicker?.cancel()
         val totalSec = durationMin * 60
+        val splitAdaptive = com.voicehabit.tracker.core.analysis.FocusTitleCleaner.split(resolvedLabel)
         _state.update {
             it.copy(
                 focusRun = FocusRun(
                     totalSec = totalSec,
                     remainingSec = totalSec,
-                    label = resolvedLabel,
+                    label = splitAdaptive.title,
+                    details = splitAdaptive.details,
                     taskId = taskId,
                     habitId = habitId,
                     isAdaptiveMicroSprint = true,
@@ -2328,8 +2336,8 @@ class HomeViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun startFocusTimerLoop(startRemainingSec: Int) {
-        startFocusTimerService(startRemainingSec)
+    private fun startFocusTimerLoop(startRemainingSec: Int, totalMin: Int = startRemainingSec / 60) {
+        startFocusTimerService(startRemainingSec, totalMin)
         focusTicker = viewModelScope.launch {
             var remaining = startRemainingSec
             while (remaining > 0) {
@@ -2350,7 +2358,7 @@ class HomeViewModel @JvmOverloads constructor(
      * Фоновый страж таймера: сервис — источник правды об окончании.
      * UI-тикер выше — только для плавного отображения секунд.
      */
-    private fun startFocusTimerService(totalSec: Int) {
+    private fun startFocusTimerService(totalSec: Int, totalMin: Int = totalSec / 60) {
         runCatching {
             val app = getApplication<Application>()
             val label = _state.value.focusRun?.label ?: "Фокус-сессия"
@@ -2358,6 +2366,7 @@ class HomeViewModel @JvmOverloads constructor(
                 .setAction(com.voicehabit.tracker.worker.FocusTimerService.ACTION_START)
                 .putExtra(com.voicehabit.tracker.worker.FocusTimerService.EXTRA_TOTAL_SEC, totalSec)
                 .putExtra(com.voicehabit.tracker.worker.FocusTimerService.EXTRA_LABEL, label)
+                .putExtra(com.voicehabit.tracker.worker.FocusTimerService.EXTRA_TOTAL_MIN, totalMin)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 app.startForegroundService(intent)
             } else {
@@ -2411,10 +2420,13 @@ class HomeViewModel @JvmOverloads constructor(
         }
         val endAt = prefs.getLong(com.voicehabit.tracker.worker.FocusTimerService.KEY_END_AT, 0L)
         if (endAt > System.currentTimeMillis() && _state.value.focusRun == null) {
+            // totalMin берём из prefs, а не из остатка: иначе 15-минутный спринт
+            // после перезапуска превращался бы в «2 мин» целочисленным делением.
+            val origTotalMin = prefs.getInt(com.voicehabit.tracker.worker.FocusTimerService.KEY_TOTAL_MIN, 0)
             val remaining = ((endAt - System.currentTimeMillis()) / 1000L).toInt().coerceAtLeast(1)
             val label = prefs.getString(com.voicehabit.tracker.worker.FocusTimerService.KEY_LABEL, "Фокус-сессия")
                 ?: "Фокус-сессия"
-            val totalMin = prefs.getInt(com.voicehabit.tracker.worker.FocusTimerService.KEY_TOTAL_MIN, remaining / 60)
+            val totalMin = origTotalMin.takeIf { it > 0 } ?: (remaining / 60)
             _state.update {
                 it.copy(
                     focusRun = FocusRun(
@@ -2424,8 +2436,57 @@ class HomeViewModel @JvmOverloads constructor(
                     )
                 )
             }
-            startFocusTimerLoop(remaining)
+            startFocusTimerLoop(remaining, totalMin)
         }
+    }
+
+    /**
+     * Знакома ли тема дневнику: топ-1 совпадение по токенам среди конспектов
+     * или прямое вхождение в открытую задачу. Ниже порога — не гадаем уровень,
+     * а показываем калибровку.
+     */
+    suspend fun isTopicFamiliar(label: String): Boolean = withContext(dispatchers.io) {
+        if (label.length < 3) return@withContext true
+        val digests = runCatching { digestRepository.recent(60) }.getOrDefault(emptyList())
+        val best = com.voicehabit.tracker.core.analysis.TokenOverlapSearch.rank(
+            label, digests, { (it.title + " " + it.gist + " " + it.keyPoints.joinToString(" ")) }
+        ).firstOrNull()
+        if (best != null && best.second >= 0.34) return@withContext true
+        val tasks = taskRepository.getAllTasksList().map { it.title.lowercase() }
+        val low = label.lowercase()
+        return@withContext tasks.any { it.contains(low.take(12)) || low.contains(it.take(12)) }
+    }
+
+    /** Точка входа адаптивного старта с калибровкой незнакомых тем. */
+    fun requestAdaptiveStart(label: String, taskId: String? = null, habitId: String? = null) {
+        val target = label.trim().ifBlank {
+            settings.userPersonaActiveFocus.trim().ifBlank {
+                _state.value.tasks.firstOrNull { !it.isCompleted }?.title ?: "Фокус-сессия"
+            }
+        }
+        viewModelScope.launch {
+            if (isTopicFamiliar(target)) {
+                startAdaptiveFocus(target, taskId, habitId)
+            } else {
+                _state.update { it.copy(focusCalibration = FocusCalibration(target, taskId, habitId)) }
+            }
+        }
+    }
+
+    fun dismissCalibration() {
+        _state.update { it.copy(focusCalibration = null) }
+    }
+
+    /** Пользователь уточнил уровень — стартуем с обогащённым контекстом. */
+    fun confirmCalibration(level: String, contextText: String) {
+        val cal = _state.value.focusCalibration ?: return
+        val enriched = buildString {
+            append(cal.label)
+            append(", уровень: ").append(level)
+            if (contextText.isNotBlank()) append(", сейчас: ").append(contextText.trim().take(120))
+        }
+        _state.update { it.copy(focusCalibration = null) }
+        startAdaptiveFocus(enriched, cal.taskId, cal.habitId)
     }
 
     /** Динамическая атомизация: закрыть текущий физический шаг и запросить следующий. */
@@ -2433,8 +2494,9 @@ class HomeViewModel @JvmOverloads constructor(
         val run = _state.value.focusRun ?: return
         val step = run.currentStep ?: return
         val updatedSteps = run.completedSteps + step
+        val fullGoal = if (run.details.isNotBlank()) "${run.label} (${run.details})" else run.label
         val smartNextStep = generateSmartSemanticStep(
-            goal = run.label,
+            goal = fullGoal,
             previousStep = step,
             type = FocusStepType.NEXT
         )
@@ -2453,7 +2515,7 @@ class HomeViewModel @JvmOverloads constructor(
             val fullContext = buildFullAiFocusContext()
             viewModelScope.launch(dispatchers.io) {
                 val nextStepAi = directAiService.decomposeFocusStep(
-                    taskOrGoal = run.label,
+                    taskOrGoal = fullGoal,
                     currentStep = step,
                     completedSteps = updatedSteps,
                     stepType = FocusStepType.NEXT,
@@ -2478,8 +2540,9 @@ class HomeViewModel @JvmOverloads constructor(
     fun overrideCurrentFocusStep(customStep: String? = null) {
         val run = _state.value.focusRun ?: return
         val currentStep = run.currentStep
+        val fullGoal = if (run.details.isNotBlank()) "${run.label} (${run.details})" else run.label
         val smartAltStep = customStep?.takeIf { it.isNotBlank() } ?: generateSmartSemanticStep(
-            goal = run.label,
+            goal = fullGoal,
             previousStep = currentStep,
             type = FocusStepType.ALTERNATIVE
         )
@@ -2497,7 +2560,7 @@ class HomeViewModel @JvmOverloads constructor(
             val fullContext = buildFullAiFocusContext()
             viewModelScope.launch(dispatchers.io) {
                 val altStepAi = directAiService.decomposeFocusStep(
-                    taskOrGoal = run.label,
+                    taskOrGoal = fullGoal,
                     currentStep = currentStep,
                     completedSteps = run.completedSteps,
                     stepType = FocusStepType.ALTERNATIVE,
@@ -2535,8 +2598,9 @@ class HomeViewModel @JvmOverloads constructor(
     fun resolveFocusBlocker() {
         val run = _state.value.focusRun ?: return
         val currentStep = run.currentStep
+        val fullGoal = if (run.details.isNotBlank()) "${run.label} (${run.details})" else run.label
         val smartUnblock = generateSmartSemanticStep(
-            goal = run.label,
+            goal = fullGoal,
             previousStep = currentStep,
             type = FocusStepType.UNBLOCK
         )
@@ -2556,7 +2620,7 @@ class HomeViewModel @JvmOverloads constructor(
             val fullContext = buildFullAiFocusContext()
             viewModelScope.launch(dispatchers.io) {
                 val unblockAi = directAiService.decomposeFocusStep(
-                    taskOrGoal = run.label,
+                    taskOrGoal = fullGoal,
                     currentStep = currentStep,
                     completedSteps = run.completedSteps,
                     stepType = FocusStepType.UNBLOCK,
@@ -2627,10 +2691,37 @@ class HomeViewModel @JvmOverloads constructor(
         }
     }
 
+    /** Завершить спринт успешно: вызывает дебрифинг и сохраняет запись в дневник. */
+    fun completeFocus() {
+        finishFocus(completed = true)
+    }
+
     private fun finishFocus(completed: Boolean) {
         val run = _state.value.focusRun ?: return
         focusTicker = null
         stopFocusTimerService()
+        // Двусторонняя связка со спринтами: завершённый спринт сам становится
+        // записью дневника, обогащая контекст для следующих калибровок.
+        if (completed) {
+            viewModelScope.launch(dispatchers.io) {
+                runCatching {
+                    val done = run.completedSteps.size
+                    digestRepository.upsert(
+                        com.voicehabit.tracker.domain.model.DigestRecord(
+                            id = digestRepository.newId(),
+                            title = "Фокус: ${run.label}",
+                            gist = "Спринт ${run.totalSec / 60} мин завершён" +
+                                (if (done > 0) ", закрыто шагов: $done" else ""),
+                            keyPoints = run.completedSteps.take(8),
+                            tone = "",
+                            mode = com.voicehabit.tracker.domain.model.IntentMode.DICTATE,
+                            modeConfidence = 1f,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+        }
         _state.update { it.copy(focusRun = null, focusDebriefRun = run) }
         viewModelScope.launch(dispatchers.io) {
             extras.saveFocusSession(
@@ -2643,6 +2734,16 @@ class HomeViewModel @JvmOverloads constructor(
                 showSnackbar("Фокус завершён: ${run.label} (${run.totalSec / 60} мин)")
                 speak("Фокус завершён.")
                 evaluateAchievements()
+            }
+        }
+    }
+
+    /** Убрать тестовый запуск из истории сессий. */
+    fun deleteFocusSession(id: String) {
+        viewModelScope.launch(dispatchers.io) {
+            extras.deleteFocusSession(id)
+            _state.update {
+                it.copy(infoMessage = "Сессия убрана из истории")
             }
         }
     }
@@ -2899,6 +3000,7 @@ class HomeViewModel @JvmOverloads constructor(
     fun setTtsEnabled(enabled: Boolean) {
         settings.ttsEnabled = enabled
         if (!enabled) tts.stop()
+        _state.update { it.copy(ttsEnabled = enabled) }
     }
 
     // ---------- Хуки в существующие flow ----------
