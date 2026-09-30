@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.voicehabit.tracker.R
+import com.voicehabit.tracker.core.analysis.HabitStats
 import com.voicehabit.tracker.presentation.home.HomeViewModel
 import com.voicehabit.tracker.presentation.theme.*
 import java.time.LocalDate
@@ -40,9 +41,19 @@ fun OverviewScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-    val completedHabitsCount = state.habits.count { it.isCompletedToday }
-    val totalHabitsCount = state.habits.size
-    val completionPercentage = if (totalHabitsCount > 0) (completedHabitsCount * 100) / totalHabitsCount else 0
+    // P1: в знаменателе только привычки, запланированные на сегодня. Раньше стояли
+    // все четыре, и пульс показывал 50% после выполнения обеих сегодняшних —
+    // привычки на другие дни не должны быть «невыполненными сегодня».
+    val todayDow = java.time.LocalDate.now().dayOfWeek.value
+    val (completedHabitsCount, totalHabitsCount) = HabitStats.todayCounts(
+        habits = state.habits,
+        todayDow = todayDow,
+        isRestDay = { it.isRestDay(todayDow) },
+        isCompleted = { it.isCompletedToday }
+    )
+    val completionPercentage =
+        if (totalHabitsCount > 0) (completedHabitsCount * 100) / totalHabitsCount else 100
+    val hasHabitsToday = totalHabitsCount > 0
     val maxStreak = state.habits.maxOfOrNull { it.currentStreak } ?: 0
 
     val timerProgress = if (state.focusTimerTotalSeconds > 0) {
@@ -299,14 +310,24 @@ fun OverviewScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "$completionPercentage%",
+                                // 0/0 — это не «100% выполнено», а «сегодня нечего делать».
+                                // Показывать 100% в этот день было бы враньём наравне с 50%.
+                                text = if (hasHabitsToday) "$completionPercentage%" else "—",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = AppTheme.colors.textPrimary
+                                color = if (hasHabitsToday) {
+                                    AppTheme.colors.textPrimary
+                                } else {
+                                    AppTheme.colors.textMuted
+                                }
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Привычки ($completedHabitsCount/$totalHabitsCount)",
+                                text = if (hasHabitsToday) {
+                                    "Привычки ($completedHabitsCount/$totalHabitsCount)"
+                                } else {
+                                    "На сегодня пусто"
+                                },
                                 fontSize = 11.sp,
                                 color = AppTheme.colors.textSecondary
                             )
@@ -599,6 +620,22 @@ fun OverviewScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
+
+                // P1: тренировочная программа. Подпись показывает не «модуль», а
+                // ближайший день — иначе карточка не отвечает на вопрос «когда
+                // мне в зал», ради которого её и открывают.
+                ModuleCard(
+                    iconResId = R.drawable.ic_programmes_dumbbell,
+                    title = "Программы",
+                    subtitle = state.programme?.let { p ->
+                        val today = p.todayDay()
+                        if (today == null) "Добавьте программу"
+                        else if (today.isRest) "${today.weekdayLabel}: отдых"
+                        else "${today.weekdayLabel}: ${today.title.take(24)}"
+                    } ?: "Импорт из буфера",
+                    onClick = { viewModel.openScreen(com.voicehabit.tracker.presentation.home.AppScreen.PROGRAMMES) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

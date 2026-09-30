@@ -63,6 +63,7 @@ import com.voicehabit.tracker.presentation.home.components.SettingsDialog
 import com.voicehabit.tracker.presentation.home.components.SwipeableTaskCard
 import com.voicehabit.tracker.presentation.home.components.TaskEditorBottomSheet
 import com.voicehabit.tracker.presentation.home.components.VoiceQueueBottomSheet
+import com.voicehabit.tracker.presentation.programmes.ProgrammesScreen
 import com.voicehabit.tracker.presentation.hub.AboutScreen
 import com.voicehabit.tracker.presentation.hub.CelebrationOverlay
 import com.voicehabit.tracker.presentation.hub.HubScreen
@@ -177,6 +178,7 @@ fun HomeScreen(
                     AppScreen.DIGESTS -> DigestsScreen(viewModel = viewModel)
                     AppScreen.JOURNAL -> JournalScreen(viewModel = viewModel)
                     AppScreen.USER_PERSONA -> UserPersonaScreen(viewModel = viewModel)
+                    AppScreen.PROGRAMMES -> ProgrammesScreen(viewModel = viewModel)
                     AppScreen.HOME -> Unit
                 }
             } else {

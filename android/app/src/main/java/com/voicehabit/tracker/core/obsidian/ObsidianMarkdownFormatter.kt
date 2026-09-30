@@ -1,6 +1,7 @@
 package com.voicehabit.tracker.core.obsidian
 
 import com.voicehabit.tracker.domain.model.DigestRecord
+import com.voicehabit.tracker.core.analysis.HabitStats
 import com.voicehabit.tracker.domain.model.Habit
 import com.voicehabit.tracker.domain.model.Task
 import java.text.SimpleDateFormat
@@ -164,11 +165,23 @@ object ObsidianMarkdownFormatter {
         appendLine("# Привычки и задачи")
         appendLine()
 
-        val completedHabitsCount = habits.count { it.isCompletedToday }
+        // P1: «выполнено сегодня» считается по запланированным на сегодня привычкам,
+        // иначе в выгрузке они расходились с тем, что показывает «Пульс продуктивности».
+        val todayDow = java.time.LocalDate.now().dayOfWeek.value
+        val (completedHabitsCount, habitsTodayCount) =
+            HabitStats.todayCounts(
+                habits = habits,
+                todayDow = todayDow,
+                isRestDay = { it.isRestDay(todayDow) },
+                isCompleted = { it.isCompletedToday }
+            )
         val openTasksCount = tasks.count { !it.isCompleted }
 
         appendLine("> [!tip] Состояние системы")
-        appendLine("> Привычек: ${habits.size} (выполнено сегодня: $completedHabitsCount) | Активных задач: $openTasksCount")
+        appendLine(
+            "> Привычек всего: ${habits.size}, на сегодня запланировано: $habitsTodayCount " +
+                "(выполнено: $completedHabitsCount) | Активных задач: $openTasksCount"
+        )
         appendLine()
 
         // Привычки

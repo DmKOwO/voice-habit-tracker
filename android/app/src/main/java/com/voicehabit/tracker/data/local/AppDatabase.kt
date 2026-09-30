@@ -13,6 +13,7 @@ import com.voicehabit.tracker.data.local.dao.DigestDao
 import com.voicehabit.tracker.data.local.dao.FocusDao
 import com.voicehabit.tracker.data.local.dao.HabitDao
 import com.voicehabit.tracker.data.local.dao.MoodDao
+import com.voicehabit.tracker.data.local.dao.ProgrammeDao
 import com.voicehabit.tracker.data.local.dao.ReviewDao
 import com.voicehabit.tracker.data.local.dao.RoutineDao
 import com.voicehabit.tracker.data.local.dao.SubtaskDao
@@ -26,6 +27,10 @@ import com.voicehabit.tracker.data.local.entity.FocusSessionEntity
 import com.voicehabit.tracker.data.local.entity.HabitEntity
 import com.voicehabit.tracker.data.local.entity.HabitLogEntity
 import com.voicehabit.tracker.data.local.entity.MoodEntity
+import com.voicehabit.tracker.data.local.entity.ProgrammeDayEntity
+import com.voicehabit.tracker.data.local.entity.ProgrammeEntity
+import com.voicehabit.tracker.data.local.entity.ProgrammeExerciseEntity
+import com.voicehabit.tracker.data.local.entity.ProgrammeLogEntity
 import com.voicehabit.tracker.data.local.entity.ReviewLogEntity
 import com.voicehabit.tracker.data.local.entity.RoutineEntity
 import com.voicehabit.tracker.data.local.entity.SubtaskEntity
@@ -48,9 +53,13 @@ import com.voicehabit.tracker.data.local.entity.VoiceLogEntity
         ReviewLogEntity::class,
         TaskLogEntity::class,
         MoodEntity::class,
-        DigestEntity::class
+        DigestEntity::class,
+        ProgrammeEntity::class,
+        ProgrammeDayEntity::class,
+        ProgrammeExerciseEntity::class,
+        ProgrammeLogEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -66,6 +75,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun moodDao(): MoodDao
     abstract fun digestDao(): DigestDao
+    abstract fun programmeDao(): ProgrammeDao
 
     companion object {
         /** Различает «быструю» задачу и «долгую» цель. */
@@ -253,7 +263,65 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+        /**
+         * v8 (P1): программы тренировок — `programmes`, `programme_days`,
+         * `programme_exercises`, `programme_logs`.
+         *
+         * Таблицы новые, чужие данные не трогаются. Важны два решения:
+         *
+         * 1. `programme_days.habitId` — **без** внешнего ключа на `habits`. Связь
+         *    логическая, а не физическая: удаление привычки не должно каскадом
+         *    снести день программы (и наоборот). Привычка и день программы живут
+         *    своей жизнью, а `habitId` — просто указатель для обратной связи.
+         * 2. `programme_logs.localDate` — TEXT в формате `yyyy-MM-dd`, как в
+         *    `task_logs`. Дата, а не `completedAt`: отметка «сделал вчера» должна
+         *    попасть во вчерашний день, а локальная зона у пользователя одна.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS programmes (
+                        id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL DEFAULT '',
+                        athleteNote TEXT NOT NULL DEFAULT '', sourceText TEXT NOT NULL DEFAULT '',
+                        goals TEXT NOT NULL DEFAULT '', startEpochDay INTEGER NOT NULL DEFAULT 0,
+                        isActive INTEGER NOT NULL DEFAULT 1, createdAt INTEGER NOT NULL DEFAULT 0)"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS programme_days (
+                        id TEXT NOT NULL PRIMARY KEY, programmeId TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0,
+                        weekday INTEGER NOT NULL DEFAULT 1, title TEXT NOT NULL DEFAULT '',
+                        focusNote TEXT NOT NULL DEFAULT '', isRest INTEGER NOT NULL DEFAULT 0,
+                        habitId TEXT,
+                        FOREIGN KEY(programmeId) REFERENCES programmes(id) ON DELETE CASCADE)"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_programme_days_programmeId ON programme_days (programmeId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_programme_days_habitId ON programme_days (habitId)")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS programme_exercises (
+                        id TEXT NOT NULL PRIMARY KEY, dayId TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0,
+                        title TEXT NOT NULL DEFAULT '', outdoor TEXT NOT NULL DEFAULT '',
+                        home TEXT NOT NULL DEFAULT '', sets INTEGER NOT NULL DEFAULT 1,
+                        repsMin INTEGER NOT NULL DEFAULT 0, repsMax INTEGER NOT NULL DEFAULT 0,
+                        measure TEXT NOT NULL DEFAULT 'повт', tempo TEXT NOT NULL DEFAULT '',
+                        restSec INTEGER NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '',
+                        targetValue REAL NOT NULL DEFAULT 0, currentValue REAL NOT NULL DEFAULT 0,
+                        FOREIGN KEY(dayId) REFERENCES programme_days(id) ON DELETE CASCADE)"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_programme_exercises_dayId ON programme_exercises (dayId)")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS programme_logs (
+                        id TEXT NOT NULL PRIMARY KEY, exerciseId TEXT NOT NULL, programmeId TEXT NOT NULL,
+                        localDate TEXT NOT NULL, value REAL NOT NULL DEFAULT 0,
+                        setsDone INTEGER NOT NULL DEFAULT 0, completedAt INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(exerciseId) REFERENCES programme_exercises(id) ON DELETE CASCADE)"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_programme_logs_exerciseId ON programme_logs (exerciseId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_programme_logs_localDate ON programme_logs (localDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_programme_logs_programmeId ON programme_logs (programmeId)")
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

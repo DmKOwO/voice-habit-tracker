@@ -99,7 +99,9 @@ class ObsidianMarkdownFormatterTest {
         val md = ObsidianMarkdownFormatter.formatHabitsAndTasks(habits, tasks, timestamp = 1790600000000L)
 
         assertTrue(md.contains("type: habits-and-tasks"))
-        assertTrue(md.contains("Привычек: 2 (выполнено сегодня: 1) | Активных задач: 1"))
+        // P1: счёт ведётся по привычкам, запланированным на сегодня, а не по всем.
+        assertTrue(md.contains("на сегодня запланировано: 2 (выполнено: 1)"))
+        assertTrue(md.contains("Активных задач: 1"))
         assertTrue(md.contains("- [x] Утренняя зарядка (7 дн.) #здоровье"))
         assertTrue(md.contains("- [ ] Чтение книги #саморазвитие"))
         assertTrue(md.contains("- [ ] Релиз v2.1 до 2026-09-30 #priority/high"))
@@ -163,7 +165,8 @@ class ObsidianMarkdownFormatterTest {
     @Test
     fun `formatHabitsAndTasks with empty lists produces clean note without crash`() {
         val md = ObsidianMarkdownFormatter.formatHabitsAndTasks(emptyList(), emptyList(), timestamp = 1790600000000L)
-        assertTrue(md.contains("Привычек: 0 (выполнено сегодня: 0) | Активных задач: 0"))
+        assertTrue(md.contains("на сегодня запланировано: 0 (выполнено: 0)"))
+        assertTrue(md.contains("Активных задач: 0"))
         assertFalse(md.contains("## 🌿 Привычки"))
         assertFalse(md.contains("## 🎯 Задачи"))
     }

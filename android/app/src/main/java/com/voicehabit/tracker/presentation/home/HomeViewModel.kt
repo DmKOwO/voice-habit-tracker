@@ -3,6 +3,10 @@ package com.voicehabit.tracker.presentation.home
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.voicehabit.tracker.core.analysis.ProgrammeDraft
+import com.voicehabit.tracker.core.analysis.ProgrammeHabitProjector
+import com.voicehabit.tracker.core.analysis.ProgrammeParser
+import com.voicehabit.tracker.core.analysis.ProgrammeVoiceResolver
 import com.voicehabit.tracker.core.audio.AudioRecorderManager
 import com.voicehabit.tracker.core.audio.SpeechRecognizerHelper
 import com.voicehabit.tracker.core.coroutines.AppDispatchers
@@ -14,6 +18,7 @@ import com.voicehabit.tracker.data.remote.DirectAiService.FocusStepType
 import com.voicehabit.tracker.data.remote.OfflineVoiceParser
 import com.voicehabit.tracker.domain.model.DigestRecord
 import com.voicehabit.tracker.domain.model.Habit
+import com.voicehabit.tracker.domain.model.Programme
 import com.voicehabit.tracker.domain.model.IntentMode
 import com.voicehabit.tracker.domain.model.Priority
 import com.voicehabit.tracker.domain.model.Subtask
@@ -62,6 +67,8 @@ class HomeViewModel @JvmOverloads constructor(
     private val extras = container.extrasRepository
     /** H1: конспекты свободного потока. */
     private val digestRepository = container.digestRepository
+    /** P1: тренировочные программы. */
+    private val programmeRepository = container.programmeRepository
     private val tts = container.tts
     private var focusTicker: kotlinx.coroutines.Job? = null
 
@@ -213,8 +220,23 @@ class HomeViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * P1. Наблюдение за активной программой.
+     *
+     * Срез приходит с датой по умолчанию — на сегодня, — поэтому после отметки
+     * подхода карточка сразу показывает новое число, без ручного обновления.
+     */
+    private fun observeProgramme() {
+        viewModelScope.launch(dispatchers.io) {
+            programmeRepository.activeProgrammeWithDaysFlow().collect { programme ->
+                _state.update { it.copy(programme = programme) }
+            }
+        }
+    }
+
     private fun observeData() {
         observeVosk()
+        observeProgramme()
         viewModelScope.launch(dispatchers.io) {
             habitRepository.getAllHabitsFlow().collect { allHabits ->
                 _state.update { current ->
@@ -1456,6 +1478,174 @@ class HomeViewModel @JvmOverloads constructor(
         }
     }
 
+    // ── P1. Программы тренировок ───────────────────────────────────────────────
+
+    /**
+     * Импорт из буфера: сначала черновик, потом решение пользователя.
+     *
+     * Разбор не пишет в базу сразу. Человек видит неделю и упражнения и может
+     * отказаться — программа не должна появляться в привычках незаметно.
+     */
+    fun previewProgrammeFromClipboard(raw: String) {
+        val draft = ProgrammeParser.parse(raw)
+        if (draft.isEmpty) {
+            _state.value = _state.value.copy(
+                programmeDraft = null,
+                programmeMessage = draft.warnings.firstOrNull() ?: "Не разобрал ни одного дня тренировки"
+            )
+            return
+        }
+        viewModelScope.launch {
+            val plan = ProgrammeHabitProjector.plan(draft, habitRepository.getAllHabitsList())
+            val reused = plan.count { it.isReused }
+            _state.value = _state.value.copy(
+                programmeDraft = draft,
+                programmePlan = plan,
+                programmeMessage = buildString {
+                    append("Разобрано: ${draft.days.size} дн., ${draft.trainingDays.size} тренировочных.")
+                    if (reused > 0) append(" Встроим в существующие: $reused.")
+                }
+            )
+        }
+    }
+
+    /** Отмена черновика — в базу ничего не попало, отменять нечего. */
+    fun discardProgrammeDraft() {
+        _state.value = _state.value.copy(
+            programmeDraft = null,
+            programmePlan = emptyList(),
+            programmeMessage = null
+        )
+    }
+
+    /**
+     * Запись программы и её проекция на привычки.
+     *
+     * `scheduleDays` приходит из [ProgrammeHabitProjector] и здесь не вычисляется:
+     * тренировки Пн/Ср/Пт обязаны стать привычками ровно с этими днями.
+     */
+    fun confirmProgrammeImport(draft: ProgrammeDraft? = _state.value.programmeDraft) {
+        val source = draft ?: return
+        if (_state.value.programmeImporting) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(programmeImporting = true, programmeMessage = null)
+            try {
+                val programmeId = programmeRepository.saveProgramme(
+                    id = null,
+                    title = source.title,
+                    athleteNote = source.athleteNote,
+                    goals = source.goals,
+                    sourceText = "",
+                    days = source.days
+                )
+                val programme = programmeRepository.byId(programmeId) ?: return@launch
+                val existing = habitRepository.getAllHabitsList()
+                val plan = ProgrammeHabitProjector.plan(programme, existing)
+                var created = 0
+                var reused = 0
+                plan.forEach { projection ->
+                    val day = programme.days.first { it.id == projection.dayId }
+                    val tags = ProgrammeHabitProjector.tagsFor(programme, day)
+                        .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    val habitId = projection.existingHabitId
+                    if (habitId != null) {
+                        // Встраиваем день в существующую привычку: расписание и теги
+                        // приводятся к программе, название и цвет остаются своими.
+                        habitRepository.updateScheduleAndTags(habitId, projection.scheduleDays, tags)
+                        programmeRepository.linkHabit(projection.dayId, habitId)
+                        reused++
+                    } else {
+                        val habit = Habit(
+                            id = java.util.UUID.randomUUID().toString(),
+                            title = projection.habitTitle,
+                            category = projection.category,
+                            displayType = projection.displayType,
+                            colorHex = projection.colorHex,
+                            frequency = projection.frequency,
+                            scheduleDays = projection.scheduleDays,
+                            tags = tags
+                        )
+                        habitRepository.insertOrUpdateHabit(habit)
+                        programmeRepository.linkHabit(projection.dayId, habit.id)
+                        created++
+                    }
+                }
+                _state.value = _state.value.copy(
+                    programmeDraft = null,
+                    programmePlan = emptyList(),
+                    programmeImporting = false,
+                    programmeMessage = "Готово: $created новых, $reused существующих. " +
+                        "Дни: ${weekdaySummary(programme.trainingWeekdays)}"
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    programmeImporting = false,
+                    programmeMessage = "Не удалось сохранить программу: ${e.message ?: "ошибка"}"
+                )
+            }
+        }
+    }
+
+    /** Удаление программы. Привычки и их стрики остаются: это карточки пользователя. */
+    fun deleteProgramme() {
+        val programme = _state.value.programme ?: return
+        viewModelScope.launch {
+            programmeRepository.delete(programme.id)
+            _state.value = _state.value.copy(
+                programme = null,
+                programmeMessage = "Программа удалена. Привычки и стрики остались."
+            )
+        }
+    }
+
+    /** Отметка подхода в упражнении. */
+    fun logProgrammeExercise(dayId: String, exerciseId: String, sets: Int, value: Double?) {
+        viewModelScope.launch {
+            val programmeId = state.value.programme?.id ?: return@launch
+            // Число не названо — пишем 0, а не выдумываем повторы: в логе ноль
+            // читается как «подход отработан, величина неизвестна».
+            val amount = value ?: 0.0
+            repeat(sets.coerceIn(1, 20)) {
+                programmeRepository.logSet(exerciseId, programmeId, amount)
+            }
+            _state.value = _state.value.copy(
+                programmeMessage = "Отмечено: $sets ${Programme.setWord(sets)}"
+            )
+        }
+    }
+
+    /** Закрытие дня целиком — «программа на сегодня сделана». */
+    fun completeProgrammeDay() {
+        viewModelScope.launch {
+            val programmeId = state.value.programme?.id ?: return@launch
+            val count = programmeRepository.completeWholeDay(programmeId)
+            _state.value = _state.value.copy(programmeMessage = "День закрыт: упражнений — $count")
+        }
+    }
+
+    /** Голосовая отметка прогресса внутри тренировки. */
+    fun applyProgrammeVoice(raw: String) {
+        val programme = state.value.programme ?: return
+        val day = programme.days.firstOrNull { it.weekday == programme.todayWeekday && !it.isRest }
+        val result = ProgrammeVoiceResolver.resolve(raw, day)
+        if (result == null) {
+            _state.value = _state.value.copy(
+                programmeMessage = "Не понял, что отметить. Скажите «сделал 12 отжиманий»."
+            )
+            return
+        }
+        if (result.completesWholeDay) {
+            completeProgrammeDay()
+        } else {
+            logProgrammeExercise(day!!.id, result.exercise.id, result.sets, result.number)
+        }
+        _state.value = _state.value.copy(programmeMessage = result.reason)
+    }
+
+    private fun weekdaySummary(days: Set<Int>): String = days.sorted().joinToString(", ") {
+        Programme.Day(id = "", programmeId = "", weekday = it).weekdayLabel
+    }
+
     fun closeScreen() {
         _state.update {
             it.copy(
@@ -1892,7 +2082,13 @@ class HomeViewModel @JvmOverloads constructor(
     fun buildDaySummary(speakOut: Boolean = true) {
         viewModelScope.launch(dispatchers.io) {
             val habits = habitRepository.getAllHabitsList().filter { it.deletedAt == null && !it.archived }
-            val doneHabits = habits.count { it.isCompletedToday }
+            val todayDow = java.time.LocalDate.now().dayOfWeek.value
+            val (doneHabits, habitsToday) = com.voicehabit.tracker.core.analysis.HabitStats.todayCounts(
+                habits = habits,
+                todayDow = todayDow,
+                isRestDay = { it.isRestDay(todayDow) },
+                isCompleted = { it.isCompletedToday }
+            )
             val tasks = taskRepository.getAllTasksList()
             val open = tasks.filter { !it.isCompleted && it.deletedAt == null && !it.isArchived }
             val doneToday = tasks.count {
@@ -1901,7 +2097,14 @@ class HomeViewModel @JvmOverloads constructor(
             }
             val tomorrow = open.filter { it.dueDateIso?.startsWith(LocalDate.now().plusDays(1).toString()) == true }
             val text = buildString {
-                append("Сегодня: привычек $doneHabits из ${habits.size}, задач закрыто $doneToday, открыто ${open.size}. ")
+                // P1: «из ${habits.size}» врало — в счёт попадали привычки на другие дни.
+                append(
+                    if (habitsToday > 0) {
+                        "Сегодня: привычек $doneHabits из $habitsToday, задач закрыто $doneToday, открыто ${open.size}. "
+                    } else {
+                        "Сегодня: привычек нет, задач закрыто $doneToday, открыто ${open.size}. "
+                    }
+                )
                 if (tomorrow.isNotEmpty()) {
                     append("На завтра: ${tomorrow.take(5).joinToString("; ") { it.title }}. ")
                 } else {

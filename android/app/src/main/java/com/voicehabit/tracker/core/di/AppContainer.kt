@@ -64,6 +64,17 @@ class AppContainer(
     /** H1: конспекты свободного потока — «диктофон с выжимкой». */
     val digestRepository by lazy { com.voicehabit.tracker.data.repository.DigestRepository(database) }
 
+    /**
+     * P1. Программы тренировок.
+     *
+     * Отдельный репозиторий, а не поле в [HabitRepositoryImpl]: программа переживает
+     * привычки (удаление карточки не удаляет план), а её тренировочные деньки
+     * проецируются в привычки только в момент импорта.
+     */
+    val programmeRepository by lazy {
+        com.voicehabit.tracker.data.repository.ProgrammeRepository(database)
+    }
+
     /** Обучение на правках (#6): личный слой поверх правил разбора. */
     val correctionStore by lazy {
         com.voicehabit.tracker.core.analysis.CorrectionStore(

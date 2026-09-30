@@ -55,6 +55,28 @@ class HabitStatsTest {
         assertEquals(100, r.percentage)
     }
 
+    /**
+     * Регрессия: тренировочная привычка на Пн, заведённая в среду.
+     *
+     * Плановых дней в окне ещё не было ни одного, и карточка показывала «100%».
+     * Человек видел выполненный план, которого не существует.
+     */
+    @Test fun `нет плановых дней это ноль процентов а не сто`() {
+        val mondayOnly = setOf(1)
+        val wednesday = epoch(2026, 9, 30)
+        val r = HabitStats.windowCompletion(
+            logEpochDays = emptySet(),
+            scheduleDays = mondayOnly,
+            windowStartEpochDay = wednesday,
+            windowEndEpochDay = wednesday,
+            createdEpochDay = wednesday,
+            todayEpochDay = wednesday
+        )
+        assertEquals(0, r.scheduled)
+        assertEquals(0, r.completed)
+        assertEquals(0, r.percentage)
+    }
+
     @Test fun `будущее не считается`() {
         val schedule = (1..7).toSet()
         val r = HabitStats.windowCompletion(
@@ -69,7 +91,12 @@ class HabitStatsTest {
         assertEquals(0, r.completed)
     }
 
-    @Test fun `пустое окно = 100`() {
+    /**
+     * Окно, в котором не осталось ни дня (начало позже конца), — это не «выполнено
+     * на 100%», а «выполнять пока нечего». Раньше здесь возвращалось 100, и любая
+     * привычка без будущих плановых дней показывала полную готовность.
+     */
+    @Test fun `пустое окно это ноль а не сто`() {
         val r = HabitStats.windowCompletion(
             logEpochDays = emptySet(),
             scheduleDays = setOf(1),
@@ -77,6 +104,7 @@ class HabitStatsTest {
             windowEndEpochDay = epoch(2026, 10, 4),
             createdEpochDay = epoch(2026, 9, 1)
         )
-        assertEquals(100, r.percentage)
+        assertEquals(0, r.scheduled)
+        assertEquals(0, r.percentage)
     }
 }

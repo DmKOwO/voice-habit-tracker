@@ -6,7 +6,10 @@ import com.voicehabit.tracker.core.logging.LogEvent
 import com.voicehabit.tracker.core.logging.LogLevel
 import com.voicehabit.tracker.domain.model.AppStats
 import com.voicehabit.tracker.domain.model.Challenge
+import com.voicehabit.tracker.core.analysis.HabitProjection
+import com.voicehabit.tracker.core.analysis.ProgrammeDraft
 import com.voicehabit.tracker.domain.model.DigestRecord
+import com.voicehabit.tracker.domain.model.Programme
 import com.voicehabit.tracker.domain.model.FocusSession
 import com.voicehabit.tracker.domain.model.FocusStartAction
 import com.voicehabit.tracker.domain.model.Habit
@@ -32,7 +35,9 @@ enum class AppScreen {
     /** Дневник мыслей первого класса. */
     JOURNAL,
     /** Модуль «Контекст обо мне» (User Persona & Memory Engine). */
-    USER_PERSONA
+    USER_PERSONA,
+    /** P1: тренировочные программы и их разбор. */
+    PROGRAMMES
 }
 
 /** Сортировка задач (G11). */
@@ -153,6 +158,14 @@ data class HomeState(
     val daySummary: String? = null,
     // Конспекты свободного потока (H1)
     val digests: List<DigestRecord> = emptyList(),
+    /** P1. Активная программа тренировок с сегодняшним прогрессом. */
+    val programme: Programme? = null,
+    /** P1. Планы проекции: что будет создано или встроено в существующие привычки. */
+    val programmePlan: List<HabitProjection> = emptyList(),
+    /** P1. Черновик разбора из буфера — импорт всегда показывается до записи. */
+    val programmeDraft: ProgrammeDraft? = null,
+    val programmeImporting: Boolean = false,
+    val programmeMessage: String? = null,
     // Модуль «Контекст обо мне»
     val userPersonaHardFacts: String = "",
     val userPersonaActiveFocus: String = "",
