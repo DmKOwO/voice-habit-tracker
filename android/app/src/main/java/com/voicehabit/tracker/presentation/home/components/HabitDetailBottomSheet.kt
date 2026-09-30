@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,8 +33,12 @@ import androidx.compose.ui.unit.sp
 import com.voicehabit.tracker.domain.model.Habit
 import com.voicehabit.tracker.presentation.home.HomeViewModel
 import com.voicehabit.tracker.presentation.theme.*
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -60,22 +65,44 @@ fun HabitDetailBottomSheet(
         mutableStateOf(habit.scheduleDays.ifEmpty { (1..7).toSet() })
     }
     val today = remember { LocalDate.now() }
-    val startDay = remember(today) { today.minusDays(27) }
-    val history = habit.historyDaysCompleted.ifEmpty { List(28) { false } }
-
-    val scheduledCount = remember(localScheduleDays, startDay) {
-        (0 until 28).count { offset ->
-            startDay.plusDays(offset.toLong()).dayOfWeek.value in localScheduleDays
-        }
+    // Календарный месяц вместо фиксированных 28 дней: сетка показывает 28–31
+    // клетку в зависимости от месяца и меняется каждый месяц.
+    var displayedMonth by remember(habit.id) { mutableStateOf(YearMonth.now()) }
+    var monthEpochs by remember(habit.id) { mutableStateOf(emptySet<Long>()) }
+    LaunchedEffect(habit.id, displayedMonth) {
+        monthEpochs = viewModel?.habitMonthCompletions(habit.id, displayedMonth) ?: emptySet()
     }
-    val completedScheduledCount = remember(localScheduleDays, startDay, history) {
-        (0 until 28).count { offset ->
-            val isScheduled = startDay.plusDays(offset.toLong()).dayOfWeek.value in localScheduleDays
-            val isDone = if (offset < history.size) history[offset] else false
-            isScheduled && isDone
-        }
+    val createdEpoch = remember(habit.id) {
+        Instant.ofEpochMilli(habit.createdAt).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
     }
-    val completionPercentage = if (scheduledCount == 0) 100 else minOf(100, (completedScheduledCount * 100) / scheduledCount)
+    val monthStart = remember(displayedMonth) { displayedMonth.atDay(1).toEpochDay() }
+    val monthEnd = remember(displayedMonth) { displayedMonth.atEndOfMonth().toEpochDay() }
+    val stats = remember(monthEpochs, localScheduleDays, displayedMonth) {
+        com.voicehabit.tracker.core.analysis.HabitStats.windowCompletion(
+            logEpochDays = monthEpochs,
+            scheduleDays = localScheduleDays,
+            windowStartEpochDay = monthStart,
+            windowEndEpochDay = monthEnd,
+            createdEpochDay = createdEpoch,
+            todayEpochDay = today.toEpochDay()
+        )
+    }
+    val scheduledCount = stats.scheduled
+    val completedScheduledCount = stats.completed
+    val completionPercentage = stats.percentage
+    // Предложный падеж для "в ...": java.time его не дает, поэтому карта вручную.
+    val monthLabel = remember(displayedMonth) {
+        val prepositional = mapOf(
+            1 to "январе", 2 to "феврале", 3 to "марте", 4 to "апреле",
+            5 to "мае", 6 to "июне", 7 to "июле", 8 to "августе",
+            9 to "сентябре", 10 to "октябре", 11 to "ноябре", 12 to "декабре"
+        )
+        val nominative = displayedMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru"))
+        MonthLabels(
+            nominative = nominative.replaceFirstChar { it.uppercase() } + " " + displayedMonth.year,
+            prepositional = prepositional.getValue(displayedMonth.monthValue)
+        )
+    }
     val scheduleSummary = when {
         localScheduleDays.size == 7 -> "Каждый день"
         localScheduleDays == (1..5).toSet() -> "По будням"
@@ -271,7 +298,7 @@ fun HabitDetailBottomSheet(
                             color = DuroLime
                         )
                         Text(
-                            text = "за 28 дней",
+                            text = "в ${monthLabel.prepositional} ${displayedMonth.year}",
                             fontSize = 11.sp,
                             color = DuroTextSecondary
                         )
@@ -281,18 +308,46 @@ fun HabitDetailBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 28-day Heatmap Title
-            Text(
-                text = "ИСТОРИЯ ЗА 28 ДНЕЙ",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = DuroTextMuted,
-                letterSpacing = 1.sp
-            )
+            // Календарь месяца с навигацией: 28–31 клетка по длине месяца.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = monthLabel.nominative.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DuroTextMuted,
+                    letterSpacing = 1.sp
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(-1 to "‹", 1 to "›").forEach { (delta, label) ->
+                        val target = displayedMonth.plusMonths(delta.toLong())
+                        val enabled = delta < 0 || target <= YearMonth.now()
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (enabled) DuroSurface else Color.Transparent)
+                                .border(1.dp, DuroBorder, RoundedCornerShape(8.dp))
+                                .clickable(enabled = enabled) { displayedMonth = target },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (enabled) DuroTextPrimary else DuroTextMuted.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 4x7 Interactive Heatmap Grid
+            // Календарная сетка месяца
             Surface(
                 color = DuroSurface,
                 shape = RoundedCornerShape(18.dp),
@@ -303,57 +358,81 @@ fun HabitDetailBottomSheet(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val history = habit.historyDaysCompleted.ifEmpty { List(28) { false } }
-                    val today = LocalDate.now()
-                    val startDay = today.minusDays(27)
-
-                    for (row in 0 until 4) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { name ->
+                            Box(
+                                modifier = Modifier.size(36.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = name, fontSize = 10.sp, color = DuroTextMuted)
+                            }
+                        }
+                    }
+                    val firstOffset = (displayedMonth.atDay(1).dayOfWeek.value - 1)
+                    val cells: List<LocalDate?> =
+                        List(firstOffset) { null } +
+                            (1..displayedMonth.lengthOfMonth()).map { displayedMonth.atDay(it) }
+                    val createdDate = LocalDate.ofEpochDay(createdEpoch)
+                    cells.chunked(7).forEach { week ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            for (col in 0 until 7) {
-                                val idx = row * 7 + col
-                                val isDone = if (idx < history.size) history[idx] else false
-                                val dayDate = startDay.plusDays(idx.toLong())
-                                val isToday = dayDate.isEqual(today)
-                                val isScheduled = dayDate.dayOfWeek.value in localScheduleDays
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            when {
-                                                isDone -> accentColor
-                                                !isScheduled -> Color(0xFF101017)
-                                                else -> Color(0xFF16161F)
+                            week.forEach { dayDate ->
+                                if (dayDate == null) {
+                                    Spacer(modifier = Modifier.size(36.dp))
+                                } else {
+                                    val epoch = dayDate.toEpochDay()
+                                    val isDone = epoch in monthEpochs
+                                    val isToday = dayDate.isEqual(today)
+                                    val isScheduled = dayDate.dayOfWeek.value in localScheduleDays
+                                    val isFuture = dayDate.isAfter(today)
+                                    val notExisted = dayDate.isBefore(createdDate)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                when {
+                                                    isDone -> accentColor
+                                                    notExisted -> Color.Transparent
+                                                    !isScheduled -> Color(0xFF101017)
+                                                    else -> Color(0xFF16161F)
+                                                }
+                                            )
+                                            .border(
+                                                width = if (isToday) 2.dp else 1.dp,
+                                                color = when {
+                                                    isToday -> DuroOrange
+                                                    isDone -> accentColor.copy(alpha = 0.5f)
+                                                    !isScheduled -> DuroBorder.copy(alpha = 0.3f)
+                                                    else -> DuroBorder
+                                                },
+                                                shape = RoundedCornerShape(8.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "${dayDate.dayOfMonth}",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isToday || isDone) FontWeight.Bold else FontWeight.Medium,
+                                            color = when {
+                                                isDone -> Color.White
+                                                notExisted || isFuture -> DuroTextMuted.copy(alpha = 0.35f)
+                                                !isScheduled -> DuroTextMuted.copy(alpha = 0.35f)
+                                                isToday -> DuroTextPrimary
+                                                else -> DuroTextMuted
                                             }
                                         )
-                                        .border(
-                                            width = if (isToday) 2.dp else 1.dp,
-                                            color = when {
-                                                isToday -> DuroOrange
-                                                isDone -> accentColor.copy(alpha = 0.5f)
-                                                !isScheduled -> DuroBorder.copy(alpha = 0.3f)
-                                                else -> DuroBorder
-                                            },
-                                            shape = RoundedCornerShape(8.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "${dayDate.dayOfMonth}",
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isToday || isDone) FontWeight.Bold else FontWeight.Medium,
-                                        color = when {
-                                            isDone -> Color.White
-                                            !isScheduled -> DuroTextMuted.copy(alpha = 0.35f)
-                                            isToday -> DuroTextPrimary
-                                            else -> DuroTextMuted
-                                        }
-                                    )
+                                    }
                                 }
+                            }
+                            // Добиваем неполную неделю пустыми клетками для ровной сетки.
+                            repeat(7 - week.size) {
+                                Spacer(modifier = Modifier.size(36.dp))
                             }
                         }
                     }
@@ -555,3 +634,6 @@ fun HabitDetailBottomSheet(
         }
     }
 }
+
+/** Заголовок месяца в двух падежах. */
+private data class MonthLabels(val nominative: String, val prepositional: String)

@@ -1283,6 +1283,7 @@ class HomeViewModel @JvmOverloads constructor(
         if (LocalDate.now().toEpochDay() != _state.value.todayEpochDay) {
             onDayChanged()
         }
+        reconcileFocusTimer()
     }
 
     fun openVoiceQueue() {
@@ -1612,8 +1613,23 @@ class HomeViewModel @JvmOverloads constructor(
 
     // ---------- Расписание, напоминания, freeze, ремонт (F4/F6/G19/G20) ----------
 
-    fun setHabitSchedule(id: String, days: Set<Int>) {
-        viewModelScope.launch {
+    /**
+     * Дни месяца с отметками привычки — для календарной сетки в карточке.
+     * Грузится по требованию при листании месяцев, а не одним фиксированным окном.
+     */
+    suspend fun habitMonthCompletions(habitId: String, month: java.time.YearMonth): Set<Long> =
+        withContext(dispatchers.io) {
+            runCatching {
+                val zone = java.time.ZoneId.systemDefault()
+                db.habitDao().getLogsForHabit(habitId)
+                    .map { java.time.Instant.ofEpochMilli(it.completedAt).atZone(zone).toLocalDate() }
+                    .filter { it.year == month.year && it.month == month.month }
+                    .map { it.toEpochDay() }
+                    .toSet()
+            }.getOrDefault(emptySet())
+        }
+
+    fun setHabitSchedule(id: String, days: Set<Int>) {        viewModelScope.launch {
             val habit = habitRepository.getHabitById(id) ?: return@launch
             val safeDays = days.ifEmpty { (1..7).toSet() }
             habitRepository.updateScheduleAndTags(id, safeDays, habit.tags)
@@ -2110,6 +2126,7 @@ class HomeViewModel @JvmOverloads constructor(
     }
 
     private fun startFocusTimerLoop(startRemainingSec: Int) {
+        startFocusTimerService(startRemainingSec)
         focusTicker = viewModelScope.launch {
             var remaining = startRemainingSec
             while (remaining > 0) {
@@ -2123,6 +2140,88 @@ class HomeViewModel @JvmOverloads constructor(
                 }
             }
             finishFocus(completed = true)
+        }
+    }
+
+    /**
+     * Фоновый страж таймера: сервис — источник правды об окончании.
+     * UI-тикер выше — только для плавного отображения секунд.
+     */
+    private fun startFocusTimerService(totalSec: Int) {
+        runCatching {
+            val app = getApplication<Application>()
+            val label = _state.value.focusRun?.label ?: "Фокус-сессия"
+            val intent = android.content.Intent(app, com.voicehabit.tracker.worker.FocusTimerService::class.java)
+                .setAction(com.voicehabit.tracker.worker.FocusTimerService.ACTION_START)
+                .putExtra(com.voicehabit.tracker.worker.FocusTimerService.EXTRA_TOTAL_SEC, totalSec)
+                .putExtra(com.voicehabit.tracker.worker.FocusTimerService.EXTRA_LABEL, label)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        }
+    }
+
+    private fun stopFocusTimerService() {
+        runCatching {
+            val app = getApplication<Application>()
+            app.startService(
+                android.content.Intent(app, com.voicehabit.tracker.worker.FocusTimerService::class.java)
+                    .setAction(com.voicehabit.tracker.worker.FocusTimerService.ACTION_CANCEL)
+            )
+        }
+    }
+
+    /**
+     * Сверка с фоновым таймером при возврате: процесс могли убить, а сервис —
+     * нет. Если конец в будущем, а сессии в памяти нет — восстанавливаем.
+     * Если сервис уже отзвенел — закрываем сессию задним числом.
+     */
+    fun reconcileFocusTimer() {
+        val prefs = com.voicehabit.tracker.worker.FocusTimerService.prefs(getApplication())
+        val finishedLabel = prefs.getString(com.voicehabit.tracker.worker.FocusTimerService.KEY_FINISHED_LABEL, null)
+        if (finishedLabel != null) {
+            prefs.edit()
+                .remove(com.voicehabit.tracker.worker.FocusTimerService.KEY_FINISHED_LABEL)
+                .remove(com.voicehabit.tracker.worker.FocusTimerService.KEY_FINISHED_MIN)
+                .remove(com.voicehabit.tracker.worker.FocusTimerService.KEY_FINISHED_AT)
+                .apply()
+            val run = _state.value.focusRun
+            if (run != null) {
+                finishFocus(completed = true)
+            } else {
+                val mins = prefs.getInt(com.voicehabit.tracker.worker.FocusTimerService.KEY_FINISHED_MIN, 0)
+                viewModelScope.launch(dispatchers.io) {
+                    extras.saveFocusSession(
+                        com.voicehabit.tracker.domain.model.FocusSession(
+                            id = extras.newFocusId(), taskId = null, habitId = null,
+                            label = finishedLabel, durationMin = mins, completed = true
+                        )
+                    )
+                    withContext(dispatchers.main) {
+                        showSnackbar("Фокус «$finishedLabel» завершён в фоне")
+                    }
+                }
+            }
+            return
+        }
+        val endAt = prefs.getLong(com.voicehabit.tracker.worker.FocusTimerService.KEY_END_AT, 0L)
+        if (endAt > System.currentTimeMillis() && _state.value.focusRun == null) {
+            val remaining = ((endAt - System.currentTimeMillis()) / 1000L).toInt().coerceAtLeast(1)
+            val label = prefs.getString(com.voicehabit.tracker.worker.FocusTimerService.KEY_LABEL, "Фокус-сессия")
+                ?: "Фокус-сессия"
+            val totalMin = prefs.getInt(com.voicehabit.tracker.worker.FocusTimerService.KEY_TOTAL_MIN, remaining / 60)
+            _state.update {
+                it.copy(
+                    focusRun = FocusRun(
+                        totalSec = (totalMin * 60).coerceAtLeast(remaining),
+                        remainingSec = remaining,
+                        label = label
+                    )
+                )
+            }
+            startFocusTimerLoop(remaining)
         }
     }
 
@@ -2310,6 +2409,7 @@ class HomeViewModel @JvmOverloads constructor(
     fun cancelFocus() {
         focusTicker?.cancel()
         focusTicker = null
+        stopFocusTimerService()
         val run = _state.value.focusRun
         _state.update { it.copy(focusRun = null) }
         if (run != null) {
@@ -2327,6 +2427,7 @@ class HomeViewModel @JvmOverloads constructor(
     private fun finishFocus(completed: Boolean) {
         val run = _state.value.focusRun ?: return
         focusTicker = null
+        stopFocusTimerService()
         _state.update { it.copy(focusRun = null, focusDebriefRun = run) }
         viewModelScope.launch(dispatchers.io) {
             extras.saveFocusSession(

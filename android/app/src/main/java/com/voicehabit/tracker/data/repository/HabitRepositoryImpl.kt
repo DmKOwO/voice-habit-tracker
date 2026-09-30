@@ -141,16 +141,18 @@ class HabitRepositoryImpl(
             val startEpoch = today.toEpochDay() - (HISTORY_DAYS - 1)
             val epochs = logDayEpochs(pastLogsGrouped[entity.id], now)
 
-            val scheduledDaysInWindow = (0 until HISTORY_DAYS).count { offset ->
-                val date = java.time.LocalDate.ofEpochDay(startEpoch + offset)
-                date.dayOfWeek.value in scheduleDaysSet
-            }
-            val completedScheduledInWindow = (0 until HISTORY_DAYS).count { offset ->
-                val epoch = startEpoch + offset
-                val date = java.time.LocalDate.ofEpochDay(epoch)
-                date.dayOfWeek.value in scheduleDaysSet && epochs.contains(epoch)
-            }
-            val completionPct = if (scheduledDaysInWindow == 0) 100 else minOf(100, (completedScheduledInWindow * 100) / scheduledDaysInWindow)
+            // Процент считается только по плановым дням и только с даты создания:
+            // дни до заведения привычки — не прогулы (см. HabitStats).
+            val createdEpoch = Instant.ofEpochMilli(entity.createdAt).atZone(zone).toLocalDate().toEpochDay()
+            val stats = com.voicehabit.tracker.core.analysis.HabitStats.windowCompletion(
+                logEpochDays = epochs,
+                scheduleDays = scheduleDaysSet,
+                windowStartEpochDay = startEpoch,
+                windowEndEpochDay = today.toEpochDay(),
+                createdEpochDay = createdEpoch,
+                todayEpochDay = today.toEpochDay()
+            )
+            val completionPct = stats.percentage
 
             entity.toHabit(
                 todayValue = todayValue,

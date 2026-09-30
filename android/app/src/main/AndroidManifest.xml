@@ -21,6 +21,8 @@
          иначе Android убьёт его через несколько минут. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Таймер фокуса: тип specialUse требует отдельного разрешения с Android 14. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- F11 Health Connect: шаги и сон (runtime-подтверждение в самом Health Connect). -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
@@ -163,6 +165,17 @@
             android:name=".worker.VoiceRecordingService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- Таймер фокуса в фоне: specialUse — единственный честный тип для таймера
+             (это не медиа и не звонок). На Android 14+ без типа FGS не стартует. -->
+        <service
+            android:name=".worker.FocusTimerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Таймер фокус-сессии с вибро и звуком по окончании" />
+        </service>
 
         <!-- FileProvider для передачи скачанного APK системному установщику.
              Каталог filesDir/updates недоступен другим приложениям напрямую,

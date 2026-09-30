@@ -82,7 +82,12 @@ class HabitHistoryIntegrityTest {
     fun `history keeps marks for all last days and computes percentage`() = runTest {
         val dao = FakeHabitDao()
         val repo = repository(dao)
-        repo.insertOrUpdateHabit(habit)
+        // Привычка заведена давно: окно в 28 дней считается целиком (старое поведение
+        // для старых привычек не меняется).
+        val oldHabit = habit.copy(
+            createdAt = today.minusDays(40).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
+        )
+        repo.insertOrUpdateHabit(oldHabit)
         dao.insertHabitLog(HabitLogEntity("log_1", "habit_bed", 1.0, null, dayAt(1)))
         dao.insertHabitLog(HabitLogEntity("log_2", "habit_bed", 1.0, null, dayAt(3)))
 
@@ -94,6 +99,27 @@ class HabitHistoryIntegrityTest {
         assertFalse(result.historyDaysCompleted[27])
         // 2 отмеченных дня из 28
         assertEquals(2 * 100 / 28, result.completionPercentage)
+    }
+
+    @Test
+    fun `percentage ignores days before habit creation`() = runTest {
+        val dao = FakeHabitDao()
+        val repo = repository(dao)
+        // Привычка создана 3 дня назад, расписание — каждый день.
+        val freshHabit = habit.copy(
+            createdAt = today.minusDays(3).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
+        )
+        repo.insertOrUpdateHabit(freshHabit)
+        // Закрыты все 3 плановых дня с момента создания (вчера, позавчера, 3 дня назад).
+        dao.insertHabitLog(HabitLogEntity("log_1", "habit_bed", 1.0, null, dayAt(1)))
+        dao.insertHabitLog(HabitLogEntity("log_2", "habit_bed", 1.0, null, dayAt(2)))
+        dao.insertHabitLog(HabitLogEntity("log_3", "habit_bed", 1.0, null, dayAt(3)))
+
+        val result = repo.getAllHabitsList().single()
+
+        // В окне «с создания»: 4 дня (3 прошедших + сегодня), закрыты 3 → 75%,
+        // а не 3 из 28 (10%). Дни до создания — не прогулы.
+        assertEquals(3 * 100 / 4, result.completionPercentage)
     }
 
     @Test
