@@ -1,23 +1,22 @@
-# Voice Habit & Task Tracker Backend (2026)
+# Сервис обработки голоса
 
-FastAPI microservice utilizing **Groq Whisper-large-v3-turbo** for sub-second speech-to-text and **Gemini 3.5 Flash-Lite** with native Structured Outputs for semantic parsing.
+FastAPI-сервис принимает аудиозапись и контекст задач и возвращает типизированный результат для Android-клиента.
 
-## Setup & Running
+## Локальный запуск
 
-```bash
-# 1. Install dependencies using uv
+```sh
 uv sync --extra dev
-
-# 2. Configure environment variables (.env)
-export GROQ_API_KEY="your-groq-key"
-export GEMINI_API_KEY="your-gemini-key"
-
-# 3. Run development server
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+cp .env.example .env
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## Features
-- Fast STT with Whisper Large v3 Turbo on Groq LPUs (~1.2s for 5 min speech)
-- Semantic extraction of habit completions, tasks, and notes with Gemini 3.5 Flash-Lite (~0.4s)
-- Fully offline-friendly mock simulation mode when API keys are not provided
-- Built-in Interactive Web Testbench at `http://localhost:8000/playground`
+Заполните локальный `.env` по образцу. Реальная удалённая обработка требует настройки внешних сервисов. Без неё доступен симуляционный режим для разработки; его ответы помечаются как недостоверные.
+
+- `/docs` — схема OpenAPI.
+- `/playground` — интерактивный стенд.
+- `/api/v1/health` — состояние конфигурации.
+- `/api/v1/voice/process` — обработка аудиозаписи.
+
+```sh
+uv run pytest
+```
